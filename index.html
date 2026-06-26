@@ -1,51 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Asistencia</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#143d59">
+  <title>Asistencia Siglo 21 / Teclab</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- Header -->
-        <div class="app-header">
-            <div>
-                <div class="app-header-title"><i class="ti ti-calendar-stats"></i> Sistema de asistencia</div>
-                <div class="app-header-sub">Área comercial — Siglo 21 / Teclab</div>
-            </div>
-            <button class="btn" onclick="openAddAsesor()"><i class="ti ti-user-plus"></i> Nuevo Asesor</button>
-        </div>
+  <aside>
+    <div class="brand"><b>21</b><span>Asistencia<br><small>Siglo 21 / Teclab</small></span></div>
+    <button class="tab active" data-tab="asistencia"><i class="ti ti-calendar-check"></i> Asistencia</button>
+    <button class="tab" data-tab="guardias"><i class="ti ti-calendar-event"></i> Guardias</button>
+    <button class="tab" data-tab="licencias"><i class="ti ti-plane"></i> Licencias</button>
+    <button class="tab" data-tab="graficos"><i class="ti ti-chart-pie"></i> Graficos</button>
+    <button class="tab" data-tab="auditoria"><i class="ti ti-history"></i> Auditoria</button>
+    <button id="darkBtn"><i class="ti ti-moon"></i> Modo oscuro</button>
+    <button id="installBtn"><i class="ti ti-device-desktop-down"></i> Instalar</button>
+  </aside>
 
-        <!-- Tabs -->
-        <div class="tab-bar">
-            <div class="tab active" onclick="switchTab('asist')">Asistencia</div>
-            <div class="tab" onclick="switchTab('guardias')">Guardias</div>
-        </div>
+  <main>
+    <header>
+      <div><small>Panel operativo</small><h1>Gestion de asistencia y RRHH</h1></div>
+      <div class="actions">
+        <button id="newAdvisor"><i class="ti ti-user-plus"></i> Nuevo asesor</button>
+        <button id="csvBtn"><i class="ti ti-file-type-csv"></i> CSV</button>
+        <button id="xlsxBtn"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+        <label><i class="ti ti-upload"></i> Importar Excel<input id="importXlsx" type="file" accept=".xlsx,.xls"></label>
+        <button id="backupBtn"><i class="ti ti-database-export"></i> Backup</button>
+        <label><i class="ti ti-database-import"></i> Restaurar<input id="restoreJson" type="file" accept=".json"></label>
+      </div>
+    </header>
 
-        <!-- Panels -->
-        <div id="panel-asist" class="panel active">
-            <div class="toolbar">
-                <select id="sel-mes" onchange="renderTable()"></select>
-                <div class="toolbar-sep"></div>
-                <button class="btn export" onclick="exportCSV()">Exportar CSV</button>
-            </div>
-            <div class="twrap" id="table-wrap"></div>
-            <div class="stats-row" id="stats-row"></div>
-        </div>
+    <section class="stats">
+      <article><i class="ti ti-users"></i><span>Activos</span><b id="activeCount">0</b></article>
+      <article><i class="ti ti-calendar-stats"></i><span>Presentismo</span><b id="presentRate">0%</b></article>
+      <article><i class="ti ti-alert-circle"></i><span>Ausentismo</span><b id="absenceRate">0%</b></article>
+      <article><i class="ti ti-clock"></i><span>Horas adeudadas</span><b id="owedHours">0 h</b></article>
+    </section>
 
-        <div id="panel-guardias" class="panel">
-            <div id="guardias-wrap"></div>
-        </div>
-    </div>
+    <section class="toolbar">
+      <input id="search" placeholder="Buscar asesor">
+      <select id="turno"><option value="">Todos los turnos</option></select>
+      <button id="prev"><i class="ti ti-chevron-left"></i></button>
+      <strong id="monthLabel"></strong>
+      <button id="next"><i class="ti ti-chevron-right"></i></button>
+    </section>
 
-    <!-- Modals -->
-    <div id="modal-layer" class="modal-wrap" style="display:none">
-        <div class="modal" id="modal-box"></div>
-    </div>
+    <section id="asistencia" class="panel active"><div class="table-wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
+    <section id="guardias" class="panel"><div class="panel-head"><h2>Guardias domingos y feriados</h2><button id="holidayBtn">Agregar feriado</button></div><div id="guards" class="cards"></div></section>
+    <section id="licencias" class="panel"><div class="panel-head"><h2>Vacaciones y licencias</h2><button id="licenseBtn">Nueva solicitud</button></div><div id="licenses" class="list"></div></section>
+    <section id="graficos" class="panel"><div class="charts"><canvas id="chart1"></canvas><canvas id="chart2"></canvas></div></section>
+    <section id="auditoria" class="panel"><div class="panel-head"><h2>Registro de cambios</h2><button id="clearAudit">Limpiar</button></div><div id="audit" class="list"></div></section>
+  </main>
 
-    <script src="data.js"></script>
-    <script src="script.js"></script>
+  <div id="menu" class="menu" hidden></div>
+  <dialog id="modal"><button id="closeModal" class="x">x</button><div id="modalBody"></div></dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="data.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
