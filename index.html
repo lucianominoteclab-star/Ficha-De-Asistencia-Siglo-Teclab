@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Asistencia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <div class="app-header">
+            <div>
+                <div class="app-header-title"><i class="ti ti-calendar-stats"></i> Sistema de asistencia</div>
+                <div class="app-header-sub">Área comercial — Siglo 21 / Teclab</div>
+            </div>
+            <button class="btn" onclick="openAddAsesor()"><i class="ti ti-user-plus"></i> Nuevo Asesor</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+            <div class="tab active" onclick="switchTab('asist')">Asistencia</div>
+            <div class="tab" onclick="switchTab('guardias')">Guardias</div>
+        </div>
+
+        <!-- Panels -->
+        <div id="panel-asist" class="panel active">
+            <div class="toolbar">
+                <select id="sel-mes" onchange="renderTable()"></select>
+                <div class="toolbar-sep"></div>
+                <button class="btn export" onclick="exportCSV()">Exportar CSV</button>
+            </div>
+            <div class="twrap" id="table-wrap"></div>
+            <div class="stats-row" id="stats-row"></div>
+        </div>
+
+        <div id="panel-guardias" class="panel">
+            <div id="guardias-wrap"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-layer" class="modal-wrap" style="display:none">
+        <div class="modal" id="modal-box"></div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
