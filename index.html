@@ -1,67 +1,824 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#143d59">
-  <title>Asistencia Siglo 21 / Teclab</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistencia – Call Center</title>
+<style>
+  /* ── TOKENS ───────────────────────────────────────── */
+  :root{
+    --bg:        #0f1117;
+    --surface:   #1a1d27;
+    --surface2:  #22263a;
+    --border:    #2e3350;
+    --accent:    #4f8ef7;
+    --accent2:   #7c3aed;
+    --green:     #22c55e;
+    --amber:     #f59e0b;
+    --red:       #ef4444;
+    --orange:    #f97316;
+    --purple:    #a855f7;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --muted2:    #94a3b8;
+    --card-r:    10px;
+    --font-mono: 'JetBrains Mono','Fira Code','Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',sans-serif;
+       min-height:100vh;font-size:14px;overflow-x:hidden}
+
+  /* ── LAYOUT ───────────────────────────────────────── */
+  header{
+    background:linear-gradient(135deg,var(--surface) 0%,var(--surface2) 100%);
+    border-bottom:1px solid var(--border);
+    padding:0 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    height:60px;position:sticky;top:0;z-index:100;
+    backdrop-filter:blur(8px);
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);
+            box-shadow:0 0 12px var(--accent)}
+  .header-right{display:flex;align-items:center;gap:12px}
+
+  main{max-width:1600px;margin:0 auto;padding:20px 16px}
+
+  /* ── CONTROLES TOP ────────────────────────────────── */
+  .top-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  select,input[type=number]{
+    background:var(--surface);border:1px solid var(--border);
+    color:var(--text);padding:8px 12px;border-radius:8px;
+    font-size:13px;outline:none;cursor:pointer;
+    transition:border-color .2s;
+  }
+  select:hover,select:focus,input:hover,input:focus{border-color:var(--accent)}
+  label{font-size:12px;color:var(--muted2);margin-right:4px}
+
+  /* ── STAT CARDS ───────────────────────────────────── */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+         gap:12px;margin-bottom:20px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);
+             border-radius:var(--card-r);padding:16px;position:relative;overflow:hidden}
+  .stat-card::before{content:'';position:absolute;inset:0;opacity:.06;
+                     background:var(--c)}
+  .stat-card .val{font-size:28px;font-weight:800;color:var(--c);font-variant-numeric:tabular-nums}
+  .stat-card .lbl{font-size:11px;color:var(--muted2);margin-top:4px;text-transform:uppercase;
+                  letter-spacing:.05em}
+
+  /* ── TABS ─────────────────────────────────────────── */
+  .tabs{display:flex;gap:4px;margin-bottom:16px;
+        background:var(--surface);border:1px solid var(--border);
+        border-radius:10px;padding:4px;width:fit-content}
+  .tab{padding:7px 18px;border-radius:7px;cursor:pointer;font-size:13px;
+       font-weight:500;transition:all .2s;color:var(--muted2)}
+  .tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.4)}
+
+  /* ── TABLA ASISTENCIA ─────────────────────────────── */
+  .table-wrap{overflow-x:auto;border-radius:var(--card-r);
+              border:1px solid var(--border);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:800px}
+  thead tr th{
+    background:var(--surface2);font-size:11px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.06em;color:var(--muted2);
+    padding:10px 8px;position:sticky;top:0;white-space:nowrap;
+    border-bottom:1px solid var(--border);
+  }
+  tbody tr{border-bottom:1px solid rgba(46,51,80,.5);transition:background .15s}
+  tbody tr:hover{background:rgba(79,142,247,.04)}
+  tbody tr.turno-tarde td.name-cell{border-left:3px solid var(--orange)}
+  tbody tr.turno-manana td.name-cell{border-left:3px solid var(--accent)}
+  td{padding:0;vertical-align:middle}
+  td.name-cell{padding:0 12px;min-width:120px;font-weight:600;font-size:13px;
+               white-space:nowrap}
+  td.turno-badge{padding:0 6px;white-space:nowrap}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;
+         font-size:10px;font-weight:700;letter-spacing:.05em}
+  .badge-m{background:rgba(79,142,247,.15);color:var(--accent)}
+  .badge-t{background:rgba(249,115,22,.15);color:var(--orange)}
+
+  /* celdas de días */
+  td.day-cell{padding:2px;min-width:44px;max-width:54px;text-align:center;
+              position:relative}
+  td.day-cell.sab{background:rgba(79,142,247,.05)}
+  td.day-cell.dom{background:rgba(168,85,247,.07)}
+  td.day-cell.fin{opacity:.4}       /* días del mes anterior/siguiente */
+
+  .day-select{
+    width:100%;border:none;outline:none;text-align:center;
+    font-size:12px;font-weight:700;border-radius:4px;
+    padding:4px 2px;cursor:pointer;
+    background:transparent;color:var(--text);
+    font-family:var(--font-mono);
+    transition:background .15s;
+  }
+  .day-select:focus{background:var(--surface2);outline:2px solid var(--accent)}
+
+  /* colores por estado */
+  .s-P  {color:#22c55e}
+  .s-T  {color:#f59e0b;background:rgba(245,158,11,.08)}
+  .s-FJ {color:#60a5fa;background:rgba(96,165,250,.08)}
+  .s-FI {color:#ef4444;background:rgba(239,68,68,.1)}
+  .s-VAC{color:#34d399;background:rgba(52,211,153,.08)}
+  .s-LIC{color:#a78bfa;background:rgba(167,139,250,.08)}
+  .s-S  {color:#fb923c;background:rgba(251,146,60,.08)}
+  .s-G  {color:#c084fc;background:rgba(192,132,252,.1)}
+  .s-FR {color:#475569;background:rgba(71,85,105,.08)}
+
+  /* hora tardanza/entrada */
+  td.hora-cell{padding:2px;min-width:54px}
+  input.hora-input{
+    width:100%;border:none;border-bottom:1px solid var(--border);
+    background:transparent;color:var(--amber);
+    font-size:11px;text-align:center;padding:4px 2px;
+    font-family:var(--font-mono);outline:none;
+    transition:border-color .2s;
+  }
+  input.hora-input:focus{border-color:var(--accent)}
+  input.hora-input::placeholder{color:var(--muted)}
+
+  /* resumen por fila */
+  td.res-cell{padding:6px 10px;text-align:center;white-space:nowrap;
+              font-size:12px;font-family:var(--font-mono);min-width:72px}
+  .res-recup{color:var(--red);font-weight:700}
+  .res-ok{color:var(--green)}
+  .res-warn{color:var(--amber)}
+
+  /* ── CAB. DÍA ─────────────────────────────────────── */
+  thead tr.dias-hdr th{font-size:10px;padding:5px 2px;text-align:center}
+  thead tr.dias-hdr th.th-sab{color:var(--accent);background:rgba(79,142,247,.07)}
+  thead tr.dias-hdr th.th-dom{color:var(--purple);background:rgba(168,85,247,.1)}
+
+  /* ── SEPARADOR DE TURNO ───────────────────────────── */
+  tr.section-sep td{
+    padding:8px 16px;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);
+    background:var(--surface2);border-top:2px solid var(--border);
+  }
+
+  /* ── GUARDIA MODAL ────────────────────────────────── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);
+                 z-index:200;display:none;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);
+         border-radius:16px;padding:28px;min-width:340px;max-width:460px;
+         box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .modal h2{font-size:16px;margin-bottom:6px}
+  .modal .sub{color:var(--muted2);font-size:12px;margin-bottom:20px}
+  .guardia-list{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
+  .guardia-item{display:flex;align-items:center;gap:10px;padding:8px 12px;
+                border-radius:8px;border:1px solid var(--border);cursor:pointer;
+                transition:all .15s}
+  .guardia-item:hover{border-color:var(--accent);background:rgba(79,142,247,.06)}
+  .guardia-item.sel{border-color:var(--purple);background:rgba(168,85,247,.1)}
+  .guardia-item input[type=checkbox]{accent-color:var(--purple);width:15px;height:15px}
+  .modal-footer{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+
+  /* ── BOTONES ──────────────────────────────────────── */
+  .btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;
+       font-size:13px;font-weight:600;transition:all .2s}
+  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.3)}
+  .btn-primary:hover{filter:brightness(1.1);box-shadow:0 4px 14px rgba(79,142,247,.5)}
+  .btn-ghost{background:transparent;color:var(--muted2);border:1px solid var(--border)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--text)}
+  .btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+  .btn-success{background:var(--green);color:#111}
+  .btn-sm{padding:5px 12px;font-size:12px}
+
+  /* ── PANEL RESUMEN ────────────────────────────────── */
+  .resumen-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .res-card{background:var(--surface);border:1px solid var(--border);
+            border-radius:var(--card-r);padding:16px}
+  .res-card h3{font-size:13px;font-weight:700;margin-bottom:12px;
+               display:flex;align-items:center;gap:8px}
+  .res-row{display:flex;justify-content:space-between;padding:5px 0;
+           border-bottom:1px solid rgba(46,51,80,.4);font-size:12px;color:var(--muted2)}
+  .res-row:last-child{border-bottom:none}
+  .res-row strong{color:var(--text);font-family:var(--font-mono)}
+
+  /* ── TOAST ────────────────────────────────────────── */
+  .toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;
+         background:var(--surface2);border:1px solid var(--green);
+         border-radius:8px;color:var(--green);font-weight:600;
+         z-index:300;transform:translateY(80px);opacity:0;
+         transition:all .3s;pointer-events:none}
+  .toast.show{transform:translateY(0);opacity:1}
+
+  /* ── EXPORT BAR ───────────────────────────────────── */
+  .export-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+              align-items:center}
+  .export-bar span{font-size:12px;color:var(--muted2)}
+
+  /* ── RESPONSIVE ───────────────────────────────────── */
+  @media(max-width:680px){
+    header{padding:0 12px}
+    main{padding:12px 8px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
 </head>
 <body>
-  <aside>
-    <div class="brand"><b>21</b><span>Asistencia<br><small>Siglo 21 / Teclab</small></span></div>
-    <button class="tab active" data-tab="asistencia"><i class="ti ti-calendar-check"></i> Asistencia</button>
-    <button class="tab" data-tab="guardias"><i class="ti ti-calendar-event"></i> Guardias</button>
-    <button class="tab" data-tab="licencias"><i class="ti ti-plane"></i> Licencias</button>
-    <button class="tab" data-tab="graficos"><i class="ti ti-chart-pie"></i> Graficos</button>
-    <button class="tab" data-tab="auditoria"><i class="ti ti-history"></i> Auditoria</button>
-    <button id="darkBtn"><i class="ti ti-moon"></i> Modo oscuro</button>
-    <button id="installBtn"><i class="ti ti-device-desktop-down"></i> Instalar</button>
-  </aside>
 
-  <main>
-    <header>
-      <div><small>Panel operativo</small><h1>Gestion de asistencia y RRHH</h1></div>
-      <div class="actions">
-        <button id="newAdvisor"><i class="ti ti-user-plus"></i> Nuevo asesor</button>
-        <button id="csvBtn"><i class="ti ti-file-type-csv"></i> CSV</button>
-        <button id="xlsxBtn"><i class="ti ti-file-spreadsheet"></i> Excel</button>
-        <label><i class="ti ti-upload"></i> Importar Excel<input id="importXlsx" type="file" accept=".xlsx,.xls"></label>
-        <button id="backupBtn"><i class="ti ti-database-export"></i> Backup</button>
-        <label><i class="ti ti-database-import"></i> Restaurar<input id="restoreJson" type="file" accept=".json"></label>
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Asistencia · Call Center
+  </div>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="abrirGuardia()">🛡 Asignar Guardia</button>
+    <button class="btn btn-primary btn-sm" onclick="guardarDatos()">💾 Guardar</button>
+  </div>
+</header>
+
+<!-- MODAL GUARDIA -->
+<div class="modal-overlay" id="guardiaModal">
+  <div class="modal">
+    <h2>Asignar Guardia</h2>
+    <p class="sub" id="guardiaSubtitle">Seleccioná 3 asesores para el día</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div>
+        <label>Día</label>
+        <select id="guardiaDia" onchange="renderGuardiaList()"></select>
       </div>
-    </header>
+      <div>
+        <label>Mes</label>
+        <select id="guardiaMes" onchange="renderGuardiaList()"></select>
+      </div>
+      <div>
+        <label>Año</label>
+        <select id="guardiaAnio" onchange="renderGuardiaList()"></select>
+      </div>
+    </div>
+    <div class="guardia-list" id="guardiaList"></div>
+    <div id="guardiaCnt" style="margin-top:12px;font-size:12px;color:var(--muted2)"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarGuardia()">Cancelar</button>
+      <button class="btn btn-primary" onclick="aplicarGuardia()">Aplicar Guardia</button>
+    </div>
+  </div>
+</div>
 
-    <section class="stats">
-      <article><i class="ti ti-users"></i><span>Activos</span><b id="activeCount">0</b></article>
-      <article><i class="ti ti-calendar-stats"></i><span>Presentismo</span><b id="presentRate">0%</b></article>
-      <article><i class="ti ti-alert-circle"></i><span>Ausentismo</span><b id="absenceRate">0%</b></article>
-      <article><i class="ti ti-clock"></i><span>Horas adeudadas</span><b id="owedHours">0 h</b></article>
-    </section>
+<main>
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div>
+      <label>Mes</label>
+      <select id="selMes" onchange="cambiarMes()"></select>
+    </div>
+    <div>
+      <label>Año</label>
+      <select id="selAnio" onchange="cambiarMes()"></select>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="irHoy()">Hoy</button>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="exportarCSV()">⬇ CSV</button>
+    </div>
+  </div>
 
-    <section class="toolbar">
-      <input id="search" placeholder="Buscar asesor">
-      <select id="turno"><option value="">Todos los turnos</option></select>
-      <button id="prev"><i class="ti ti-chevron-left"></i></button>
-      <strong id="monthLabel"></strong>
-      <button id="next"><i class="ti ti-chevron-right"></i></button>
-    </section>
+  <!-- STATS -->
+  <div class="stats" id="statsBar"></div>
 
-    <section id="asistencia" class="panel active"><div class="table-wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
-    <section id="guardias" class="panel"><div class="panel-head"><h2>Guardias domingos y feriados</h2><button id="holidayBtn">Agregar feriado</button></div><div id="guards" class="cards"></div></section>
-    <section id="licencias" class="panel"><div class="panel-head"><h2>Vacaciones y licencias</h2><button id="licenseBtn">Nueva solicitud</button></div><div id="licenses" class="list"></div></section>
-    <section id="graficos" class="panel"><div class="charts"><canvas id="chart1"></canvas><canvas id="chart2"></canvas></div></section>
-    <section id="auditoria" class="panel"><div class="panel-head"><h2>Registro de cambios</h2><button id="clearAudit">Limpiar</button></div><div id="audit" class="list"></div></section>
-  </main>
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="setTab('asistencia',this)">📋 Asistencia</div>
+    <div class="tab" onclick="setTab('resumen',this)">📊 Resumen</div>
+    <div class="tab" onclick="setTab('guardias',this)">🛡 Guardias</div>
+  </div>
 
-  <div id="menu" class="menu" hidden></div>
-  <dialog id="modal"><button id="closeModal" class="x">x</button><div id="modalBody"></div></dialog>
+  <!-- VISTA ASISTENCIA -->
+  <div id="vista-asistencia">
+    <div class="table-wrap">
+      <table id="mainTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="data.js"></script>
-  <script src="script.js"></script>
+  <!-- VISTA RESUMEN -->
+  <div id="vista-resumen" style="display:none">
+    <div class="resumen-grid" id="resumenGrid"></div>
+  </div>
+
+  <!-- VISTA GUARDIAS -->
+  <div id="vista-guardias" style="display:none">
+    <div id="guardiaLog" class="table-wrap" style="padding:16px">
+      <h3 style="margin-bottom:12px;color:var(--muted2);font-size:13px;text-transform:uppercase;
+                 letter-spacing:.06em">Guardias asignadas este mes</h3>
+      <div id="guardiaLogBody"></div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   DATOS BASE
+   ════════════════════════════════════════════════════════════ */
+const MANANA = ["CAMI","GABI","CIELO","MILENA","MAKARENA","MAGALI","MICA G",
+                "AYLEN","JIMENA","MARIANA","ABRIL","NATASHA","LEILA","JOAQUIN","CANDELA"];
+const TARDE  = ["LUANA","VICTORIA","CAMILA","MILI","LOURDES","ANTONELLA",
+                "LUIGI","CECILIA","JULIETA","SOFIA"];
+const TODOS  = [...MANANA, ...TARDE];
+
+const HORARIOS = {
+  MAÑ: { entSem:9, salSem:16, entSab:9, salSab:13, hsSem:7, hsSab:4 },
+  TARDE:{ entSem:14,salSem:21,entSab:15,salSab:19, hsSem:7, hsSab:4 }
+};
+const HS_GUARDIA = 4;
+
+const ESTADOS = ["","P","T","FJ","FI","VAC","LIC","S","G","FR"];
+const ESTADO_LABEL = {
+  "":"–","P":"Presente","T":"Tarde","FJ":"F.Justif","FI":"F.Injust",
+  "VAC":"Vacaciones","LIC":"Licencia","S":"Sal.Ant","G":"Guardia","FR":"Franco"
+};
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+               "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_SEM = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+let mesActual, anioActual;
+let datos = {}; // datos[clave] = { estado, horaEnt, horaSal }
+let guardias = {}; // guardias[YYYY-MM-DD] = [nombres]
+let tabActiva = "asistencia";
+
+/* ════════════════════════════════════════════════════════════
+   PERSISTENCIA
+   ════════════════════════════════════════════════════════════ */
+function clave(asesor, fecha){return `${asesor}::${fecha}`}
+function claveGuardia(fecha){return `g::${fecha}`}
+
+function guardarDatos(){
+  localStorage.setItem("asistencia_datos", JSON.stringify(datos));
+  localStorage.setItem("asistencia_guardias", JSON.stringify(guardias));
+  toast("Guardado ✓");
+}
+function cargarDatos(){
+  try{
+    const d = localStorage.getItem("asistencia_datos");
+    const g = localStorage.getItem("asistencia_guardias");
+    if(d) datos    = JSON.parse(d);
+    if(g) guardias = JSON.parse(g);
+  }catch(e){datos={};guardias={}}
+}
+
+/* ════════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════════ */
+function init(){
+  cargarDatos();
+  const hoy = new Date();
+  mesActual  = hoy.getMonth();   // 0-based
+  anioActual = hoy.getFullYear();
+  buildSelects();
+  render();
+  setInterval(guardarDatos, 60000); // autosave cada 1 min
+}
+
+function buildSelects(){
+  const sm = document.getElementById("selMes");
+  const sa = document.getElementById("selAnio");
+  sm.innerHTML = MESES.map((m,i)=>`<option value="${i}" ${i===mesActual?"selected":""}>${m}</option>`).join("");
+  const base = 2025;
+  for(let y=base;y<=base+3;y++){
+    sa.innerHTML += `<option value="${y}" ${y===anioActual?"selected":""}>${y}</option>`;
+  }
+}
+
+function cambiarMes(){
+  mesActual  = +document.getElementById("selMes").value;
+  anioActual = +document.getElementById("selAnio").value;
+  render();
+}
+
+function irHoy(){
+  const h = new Date();
+  mesActual=h.getMonth(); anioActual=h.getFullYear();
+  document.getElementById("selMes").value=mesActual;
+  document.getElementById("selAnio").value=anioActual;
+  render();
+}
+
+/* ════════════════════════════════════════════════════════════
+   HELPERS FECHA
+   ════════════════════════════════════════════════════════════ */
+function diasEnMes(m,y){return new Date(y,m+1,0).getDate()}
+function diasSemana(d,m,y){return new Date(y,m,d).getDay()} // 0=dom,6=sab
+function esSab(d,m,y){return diasSemana(d,m,y)===6}
+function esDom(d,m,y){return diasSemana(d,m,y)===0}
+function fmtFecha(d,m,y){return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
+
+/* ════════════════════════════════════════════════════════════
+   RENDER PRINCIPAL
+   ════════════════════════════════════════════════════════════ */
+function render(){
+  renderStats();
+  if(tabActiva==="asistencia") renderTabla();
+  if(tabActiva==="resumen")    renderResumen();
+  if(tabActiva==="guardias")   renderGuardias();
+}
+
+/* ── STATS ─────────────────────────────────────────── */
+function renderStats(){
+  const dias = diasEnMes(mesActual, anioActual);
+  let presentes=0, tardanzasTotal=0, faltasInj=0, vacaciones=0;
+  for(const asesor of TODOS){
+    for(let d=1;d<=dias;d++){
+      const f = fmtFecha(d,mesActual,anioActual);
+      const reg = datos[clave(asesor,f)]||{};
+      const est = reg.estado||"";
+      if(est==="P") presentes++;
+      if(est==="T") { presentes++; tardanzasTotal++; }
+      if(est==="FI") faltasInj++;
+      if(est==="VAC") vacaciones++;
+    }
+  }
+  const cards = [
+    {val:presentes,   lbl:"Presencias mes",  c:"#4f8ef7"},
+    {val:tardanzasTotal,lbl:"Tardanzas",      c:"#f59e0b"},
+    {val:faltasInj,   lbl:"Faltas Injust.",   c:"#ef4444"},
+    {val:vacaciones,  lbl:"Días Vacaciones",  c:"#22c55e"},
+    {val:MANANA.length,lbl:"Turno Mañana",    c:"#60a5fa"},
+    {val:TARDE.length, lbl:"Turno Tarde",     c:"#f97316"},
+  ];
+  document.getElementById("statsBar").innerHTML = cards.map(c=>
+    `<div class="stat-card" style="--c:${c.c}">
+      <div class="val">${c.val}</div>
+      <div class="lbl">${c.lbl}</div>
+    </div>`
+  ).join("");
+}
+
+/* ── TABLA ASISTENCIA ─────────────────────────────── */
+function renderTabla(){
+  const dias = diasEnMes(mesActual, anioActual);
+
+  /* CABECERA */
+  let headHTML = `<tr>
+    <th style="min-width:120px;text-align:left;padding-left:12px">Asesor</th>
+    <th style="min-width:60px">Turno</th>`;
+  for(let d=1;d<=dias;d++){
+    const dow = diasSemana(d,mesActual,anioActual);
+    const cls = dow===6?"th-sab":dow===0?"th-dom":"";
+    const nm  = ["D","L","M","X","J","V","S"][dow];
+    headHTML += `<th class="${cls}" style="min-width:44px">${nm}<br><span style="font-size:11px;opacity:.7">${d}</span></th>`;
+  }
+  headHTML += `
+    <th style="min-width:72px;color:#22c55e">HS<br>Teóric.</th>
+    <th style="min-width:72px;color:#f59e0b">Tard.<br>(hs)</th>
+    <th style="min-width:72px;color:#ef4444">FI<br>(hs)</th>
+    <th style="min-width:72px;color:#a78bfa">FJ/VAC<br>(hs)</th>
+    <th style="min-width:80px;color:#ef4444;font-weight:800">HS A<br>RECUP.</th>
+  </tr>`;
+  document.getElementById("tableHead").innerHTML = headHTML;
+
+  /* BODY */
+  let body = "";
+
+  function filaAsesor(asesor, turno){
+    const hor = HORARIOS[turno];
+    let hsTeo=0, tardanzas=0, faltasInj=0, horasFJ=0, horasRecup=0;
+
+    let celdas="";
+    for(let d=1;d<=dias;d++){
+      const f   = fmtFecha(d,mesActual,anioActual);
+      const dow = diasSemana(d,mesActual,anioActual);
+      const reg = datos[clave(asesor,f)]||{};
+      const est = reg.estado||"";
+      const ent = reg.horaEnt||"";
+      const sal = reg.horaSal||"";
+
+      // clases de la celda
+      let clsCel = "day-cell";
+      if(dow===6) clsCel+=" sab";
+      if(dow===0) clsCel+=" dom";
+
+      // calcular horas teóricas
+      if(est==="G"){ hsTeo+=HS_GUARDIA; }
+      else if(est==="P"||est==="T"||est==="FJ"||est==="VAC"||est==="LIC"){
+        if(dow===6) hsTeo+=hor.hsSab;
+        else if(dow!==0) hsTeo+=hor.hsSem;
+      }
+
+      // tardanza
+      if(est==="T" && ent){
+        const h = parseHora(ent);
+        const entTeo = (dow===6)?hor.entSab:hor.entSem;
+        const tard = Math.max(0, h-entTeo);
+        tardanzas += tard;
+        horasRecup += tard;
+      }
+      // salida anticipada
+      if(est==="S" && sal){
+        const h = parseHora(sal);
+        const salTeo = (dow===6)?hor.salSab:hor.salSem;
+        const salic = Math.max(0, salTeo-h);
+        horasRecup += salic;
+      }
+      // faltas injust
+      if(est==="FI"){
+        const h = (dow===6)?hor.hsSab:hor.hsSem;
+        faltasInj += h;
+      }
+      // FJ/VAC/LIC
+      if(["FJ","VAC","LIC"].includes(est)){
+        const h = (dow===6)?hor.hsSab:hor.hsSem;
+        horasFJ += h;
+      }
+
+      // select de estado
+      const opts = ESTADOS.map(e=>
+        `<option value="${e}" ${e===est?"selected":""}>${e||"–"}</option>`
+      ).join("");
+      const clsEst = `day-select s-${est||"vacio"}`;
+
+      // mostrar hora entrada si hay tardanza
+      const showEnt = (est==="T")||(est===""&&ent);
+      const showSal = (est==="S")||(est===""&&sal);
+
+      celdas += `<td class="${clsCel}">
+        <select class="${clsEst}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="estado"
+          onchange="setEstado(this)" title="${ESTADO_LABEL[est]||est}">
+          ${opts}
+        </select>
+        ${showEnt?`<input class="hora-input" type="text" placeholder="HH:MM"
+          value="${ent}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="horaEnt"
+          onchange="setHora(this)" style="display:block">`:``}
+        ${showSal?`<input class="hora-input" type="text" placeholder="HH:MM"
+          value="${sal}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="horaSal"
+          onchange="setHora(this)" style="display:block;color:#f97316">`:``}
+      </td>`;
+    }
+
+    const recupClass = horasRecup>0?"res-recup":horasRecup===0?"res-ok":"";
+    return `<tr class="turno-${turno==="MAÑ"?"manana":"tarde"}">
+      <td class="name-cell">${asesor}</td>
+      <td class="turno-badge">
+        <span class="badge badge-${turno==="MAÑ"?"m":"t"}">${turno}</span>
+      </td>
+      ${celdas}
+      <td class="res-cell">${hsTeo.toFixed(0)}h</td>
+      <td class="res-cell" style="color:${tardanzas>0?"#f59e0b":"var(--muted)"}">${tardanzas>0?tardanzas.toFixed(2)+"h":"–"}</td>
+      <td class="res-cell" style="color:${faltasInj>0?"#ef4444":"var(--muted)"}">${faltasInj>0?faltasInj.toFixed(0)+"h":"–"}</td>
+      <td class="res-cell" style="color:${horasFJ>0?"#a78bfa":"var(--muted)"}">${horasFJ>0?horasFJ.toFixed(0)+"h":"–"}</td>
+      <td class="res-cell ${recupClass}">${horasRecup>0?horasRecup.toFixed(2)+"h":"–"}</td>
+    </tr>`;
+  }
+
+  body += `<tr class="section-sep"><td colspan="999">☀ TURNO MAÑANA — Lun-Vie 9:00–16:00 · Sáb 9:00–13:00</td></tr>`;
+  for(const a of MANANA) body += filaAsesor(a,"MAÑ");
+  body += `<tr class="section-sep"><td colspan="999">🌙 TURNO TARDE — Lun-Vie 14:00–21:00 · Sáb 15:00–19:00</td></tr>`;
+  for(const a of TARDE)  body += filaAsesor(a,"TARDE");
+
+  document.getElementById("tableBody").innerHTML = body;
+}
+
+/* ── RESUMEN ───────────────────────────────────────── */
+function renderResumen(){
+  const dias = diasEnMes(mesActual, anioActual);
+  let html = "";
+  for(const asesor of TODOS){
+    const turno = MANANA.includes(asesor)?"MAÑ":"TARDE";
+    const hor   = HORARIOS[turno];
+    let hsTeo=0,tard=0,fi=0,fj=0,vac=0,lic=0,recup=0,guard=0;
+    for(let d=1;d<=dias;d++){
+      const f   = fmtFecha(d,mesActual,anioActual);
+      const dow = diasSemana(d,mesActual,anioActual);
+      const reg = datos[clave(asesor,f)]||{};
+      const est = reg.estado||"";
+      if(est==="G"){hsTeo+=HS_GUARDIA;guard++;}
+      else if(["P","T","FJ","VAC","LIC"].includes(est)){
+        if(dow===6) hsTeo+=hor.hsSab;
+        else if(dow!==0) hsTeo+=hor.hsSem;
+      }
+      if(est==="T"&&reg.horaEnt){
+        const h=parseHora(reg.horaEnt);
+        const et=(dow===6)?hor.entSab:hor.entSem;
+        const t=Math.max(0,h-et);
+        tard+=t;recup+=t;
+      }
+      if(est==="S"&&reg.horaSal){
+        const h=parseHora(reg.horaSal);
+        const st=(dow===6)?hor.salSab:hor.salSem;
+        recup+=Math.max(0,st-h);
+      }
+      if(est==="FI") fi+=(dow===6)?hor.hsSab:hor.hsSem;
+      if(est==="FJ") fj+=(dow===6)?hor.hsSab:hor.hsSem;
+      if(est==="VAC"){fj+=(dow===6)?hor.hsSab:hor.hsSem;vac++;}
+      if(est==="LIC"){fj+=(dow===6)?hor.hsSab:hor.hsSem;lic++;}
+    }
+    const color = MANANA.includes(asesor)?"var(--accent)":"var(--orange)";
+    html += `<div class="res-card">
+      <h3><span style="color:${color};font-size:15px">●</span> ${asesor}
+        <span class="badge badge-${turno==="MAÑ"?"m":"t"}" style="margin-left:auto">${turno}</span>
+      </h3>
+      <div class="res-row"><span>HS Teóricas</span><strong>${hsTeo.toFixed(0)}h</strong></div>
+      <div class="res-row"><span>Tardanzas</span><strong style="color:${tard>0?"#f59e0b":"inherit"}">${tard>0?tard.toFixed(2)+"h":"–"}</strong></div>
+      <div class="res-row"><span>Faltas Injust.</span><strong style="color:${fi>0?"#ef4444":"inherit"}">${fi>0?fi.toFixed(0)+"h":"–"}</strong></div>
+      <div class="res-row"><span>FJ / VAC / LIC</span><strong style="color:#a78bfa">${fj>0?fj.toFixed(0)+"h":"–"}</strong></div>
+      <div class="res-row"><span>Días Vacaciones</span><strong>${vac>0?vac+"d":"–"}</strong></div>
+      <div class="res-row"><span>Días Licencia</span><strong>${lic>0?lic+"d":"–"}</strong></div>
+      <div class="res-row"><span>Días Guardia</span><strong style="color:#c084fc">${guard>0?guard+"d":"–"}</strong></div>
+      <div class="res-row"><span style="font-weight:700;color:var(--text)">⚠ HS A RECUPERAR</span>
+        <strong style="color:${recup>0?"#ef4444":"#22c55e"};font-size:15px">
+          ${recup>0?recup.toFixed(2)+"h":"✓ 0h"}
+        </strong></div>
+    </div>`;
+  }
+  document.getElementById("resumenGrid").innerHTML = html;
+}
+
+/* ── GUARDIAS LOG ──────────────────────────────────── */
+function renderGuardias(){
+  const dias = diasEnMes(mesActual, anioActual);
+  let html = "";
+  for(let d=1;d<=dias;d++){
+    const f   = fmtFecha(d,mesActual,anioActual);
+    const dow = diasSemana(d,mesActual,anioActual);
+    if(dow!==0) continue; // solo domingos
+    const asignados = guardias[f]||[];
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;
+                         border-bottom:1px solid var(--border)">
+      <div style="min-width:80px;font-weight:700;color:var(--purple)">${DIAS_SEM[dow]} ${d}</div>
+      <div style="flex:1;display:flex;gap:8px;flex-wrap:wrap">
+        ${asignados.length===0
+          ? `<span style="color:var(--muted);font-size:12px">Sin asignar</span>`
+          : asignados.map(a=>`<span class="badge" style="background:rgba(168,85,247,.15);
+               color:#c084fc;padding:4px 10px;border-radius:6px">${a}</span>`).join("")}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="abrirGuardiaDia(${d})">✎ Editar</button>
+    </div>`;
+  }
+  if(!html) html = `<p style="color:var(--muted);text-align:center;padding:24px">
+    No hay domingos en el mes actual.</p>`;
+  document.getElementById("guardiaLogBody").innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   INTERACCIÓN
+   ════════════════════════════════════════════════════════════ */
+function setEstado(sel){
+  const a = sel.dataset.asesor;
+  const f = sel.dataset.fecha;
+  const v = sel.value;
+  const k = clave(a,f);
+  if(!datos[k]) datos[k]={};
+  datos[k].estado = v;
+  // Reset colores
+  sel.className = `day-select s-${v||"vacio"}`;
+  // Re-render fila para mostrar/ocultar inputs de hora
+  render();
+}
+
+function setHora(inp){
+  const a = inp.dataset.asesor;
+  const f = inp.dataset.fecha;
+  const t = inp.dataset.tipo;
+  const v = inp.value.trim();
+  const k = clave(a,f);
+  if(!datos[k]) datos[k]={};
+  datos[k][t] = v;
+}
+
+function parseHora(str){
+  if(!str) return 0;
+  const p = str.split(":");
+  return parseFloat(p[0]) + (parseFloat(p[1]||0)/60);
+}
+
+/* ── TABS ─────────────────────────────────────────── */
+function setTab(nombre, el){
+  tabActiva = nombre;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("vista-asistencia").style.display = nombre==="asistencia"?"block":"none";
+  document.getElementById("vista-resumen").style.display    = nombre==="resumen"?"block":"none";
+  document.getElementById("vista-guardias").style.display   = nombre==="guardias"?"block":"none";
+  render();
+}
+
+/* ── GUARDIA MODAL ─────────────────────────────────── */
+let guardiaFechaActual = null;
+
+function abrirGuardia(){
+  // Populate selects
+  const gd = document.getElementById("guardiaDia");
+  const gm = document.getElementById("guardiaMes");
+  const ga = document.getElementById("guardiaAnio");
+
+  // Domingos del mes
+  const dias = diasEnMes(mesActual,anioActual);
+  const domingos = [];
+  for(let d=1;d<=dias;d++) if(esDom(d,mesActual,anioActual)) domingos.push(d);
+  gd.innerHTML = domingos.map(d=>`<option value="${d}">${d}</option>`).join("");
+
+  gm.innerHTML = MESES.map((m,i)=>`<option value="${i}" ${i===mesActual?"selected":""}>${m}</option>`).join("");
+  ga.innerHTML = [2025,2026,2027,2028].map(y=>`<option value="${y}" ${y===anioActual?"selected":""}>${y}</option>`).join("");
+
+  document.getElementById("guardiaModal").classList.add("open");
+  renderGuardiaList();
+}
+
+function abrirGuardiaDia(dia){
+  abrirGuardia();
+  document.getElementById("guardiaDia").value = dia;
+  renderGuardiaList();
+}
+
+function renderGuardiaList(){
+  const d   = +document.getElementById("guardiaDia").value;
+  const m   = +document.getElementById("guardiaMes").value;
+  const y   = +document.getElementById("guardiaAnio").value;
+  const f   = fmtFecha(d,m,y);
+  guardiaFechaActual = f;
+  const sel = guardias[f]||[];
+
+  document.getElementById("guardiaSubtitle").textContent =
+    `Seleccioná 3 asesores — ${DIAS_SEM[diasSemana(d,m,y)]} ${d} de ${MESES[m]} ${y}`;
+
+  const html = TODOS.map(a=>`
+    <label class="guardia-item ${sel.includes(a)?"sel":""}">
+      <input type="checkbox" value="${a}" ${sel.includes(a)?"checked":""}
+        onchange="toggleGuardiaCheck(this)">
+      <span>${a}</span>
+      <span class="badge badge-${MANANA.includes(a)?"m":"t"}" style="margin-left:auto">
+        ${MANANA.includes(a)?"MAÑ":"TARDE"}
+      </span>
+    </label>`).join("");
+  document.getElementById("guardiaList").innerHTML = html;
+  actualizarCntGuardia();
+}
+
+function toggleGuardiaCheck(cb){
+  const cnt = document.querySelectorAll("#guardiaList input:checked").length;
+  if(cnt>3){ cb.checked=false; toast("Máximo 3 asesores por guardia","red"); return; }
+  cb.closest(".guardia-item").classList.toggle("sel",cb.checked);
+  actualizarCntGuardia();
+}
+
+function actualizarCntGuardia(){
+  const cnt = document.querySelectorAll("#guardiaList input:checked").length;
+  document.getElementById("guardiaCnt").textContent = `${cnt}/3 seleccionados`;
+}
+
+function aplicarGuardia(){
+  const sels = [...document.querySelectorAll("#guardiaList input:checked")].map(c=>c.value);
+  if(sels.length!==3){ toast("Seleccioná exactamente 3 asesores","red"); return; }
+  guardias[guardiaFechaActual] = sels;
+  // Marcar estado G para los 3 seleccionados, FR para el resto
+  for(const a of TODOS){
+    const k = clave(a,guardiaFechaActual);
+    if(!datos[k]) datos[k]={};
+    datos[k].estado = sels.includes(a)?"G":"FR";
+  }
+  cerrarGuardia();
+  guardarDatos();
+  render();
+  toast("Guardia asignada ✓");
+}
+
+function cerrarGuardia(){
+  document.getElementById("guardiaModal").classList.remove("open");
+}
+
+/* ── EXPORT CSV ────────────────────────────────────── */
+function exportarCSV(){
+  const dias = diasEnMes(mesActual,anioActual);
+  const rows = [["Asesor","Turno","Fecha","DíaSemana","Estado","HoraEntrada","HoraSalida"]];
+  for(const a of TODOS){
+    const turno = MANANA.includes(a)?"MAÑ":"TARDE";
+    for(let d=1;d<=dias;d++){
+      const f   = fmtFecha(d,mesActual,anioActual);
+      const dow = DIAS_SEM[diasSemana(d,mesActual,anioActual)];
+      const reg = datos[clave(a,f)]||{};
+      rows.push([a, turno, f, dow, reg.estado||"", reg.horaEnt||"", reg.horaSal||""]);
+    }
+  }
+  const csv = rows.map(r=>r.join(",")).join("\n");
+  const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `asistencia_${MESES[mesActual]}_${anioActual}.csv`;
+  a.click();
+  toast("CSV descargado ✓");
+}
+
+/* ── TOAST ─────────────────────────────────────────── */
+function toast(msg, tipo="green"){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.borderColor = tipo==="red"?"var(--red)":"var(--green)";
+  t.style.color       = tipo==="red"?"var(--red)":"var(--green)";
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2500);
+}
+
+/* ════════════════════════════════════════════════════
+   ARRANCAR
+   ════════════════════════════════════════════════════ */
+init();
+</script>
 </body>
 </html>
+
