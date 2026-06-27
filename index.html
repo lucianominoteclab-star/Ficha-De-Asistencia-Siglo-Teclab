@@ -97,7 +97,15 @@ td.day-cell{padding:2px;min-width:42px;max-width:52px;text-align:center;position
 td.day-cell.sab{background:rgba(79,142,247,.05)}
 td.day-cell.dom{background:rgba(168,85,247,.07)}
 td.day-cell.drag-over{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
-td.day-cell.drag-preview{background:rgba(79,142,247,.15)!important}
+td.day-cell.drag-preview{background:rgba(79,142,247,.18)!important;outline:1px solid var(--accent)}
+
+/* zona de arrastre: franja superior amplia en cada celda */
+td.day-cell .drag-handle{
+  display:none;
+  position:absolute;top:0;left:0;right:0;height:100%;
+  cursor:crosshair;z-index:2;border-radius:4px;
+}
+body.drag-mode td.day-cell .drag-handle{display:block}
 
 .day-select{width:100%;border:none;outline:none;text-align:center;
   font-size:12px;font-weight:700;border-radius:4px;padding:4px 2px;cursor:pointer;
@@ -114,8 +122,8 @@ td.day-cell.drag-preview{background:rgba(79,142,247,.15)!important}
 .s-S  {color:#fb923c;background:rgba(251,146,60,.08)}
 .s-G  {color:#c084fc;background:rgba(192,132,252,.1)}
 .s-FR   {color:#475569;background:rgba(71,85,105,.08)}
-.s-HE50 {color:#f0abfc;background:rgba(240,171,252,.10)}
-.s-HE100{color:#e879f9;background:rgba(232,121,249,.12);font-weight:900}
+.s-HSmas {color:#f0abfc;background:rgba(240,171,252,.10)}
+.s-HSmas2{color:#e879f9;background:rgba(232,121,249,.12);font-weight:900}
 
 /* hora */
 input.hora-input{width:100%;border:none;border-bottom:1px solid var(--border);
@@ -123,6 +131,9 @@ input.hora-input{width:100%;border:none;border-bottom:1px solid var(--border);
   padding:4px 2px;font-family:var(--font-mono);outline:none;transition:border-color .2s}
 input.hora-input:focus{border-color:var(--accent)}
 input.hora-input::placeholder{color:var(--muted)}
+input.mini-num{-moz-appearance:textfield}
+input.mini-num::-webkit-outer-spin-button,
+input.mini-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
 /* resumen fila */
 td.res-cell{padding:6px 10px;text-align:center;white-space:nowrap;
@@ -299,8 +310,8 @@ const ESTADOS_DEF = [
   {c:"S",  l:"Salida anticip.",color:"#fb923c", bg:"rgba(251,146,60,.12)"},
   {c:"G",  l:"Guardia",        color:"#c084fc", bg:"rgba(192,132,252,.12)"},
   {c:"FR", l:"Franco",         color:"#64748b", bg:"rgba(71,85,105,.12)"},
-  {c:"HE50", l:"Hs extra 50%", color:"#f0abfc", bg:"rgba(240,171,252,.12)"},
-  {c:"HE100",l:"Hs extra 100%",color:"#e879f9", bg:"rgba(232,121,249,.12)"},
+  {c:"HS+",  l:"Hs extra 50%", color:"#f0abfc", bg:"rgba(240,171,252,.12)"},
+  {c:"HS++", l:"Hs extra 100%",color:"#e879f9", bg:"rgba(232,121,249,.12)"},
 ];
 const ESTADOS     = ["", ...ESTADOS_DEF.map(e=>e.c)];
 const ESTADO_META = Object.fromEntries(ESTADOS_DEF.map(e=>[e.c,e]));
@@ -406,6 +417,8 @@ function selDragEstado(cod, el){
   dragEstado = cod;
   document.querySelectorAll(".drag-pill").forEach(p=>p.classList.remove("active"));
   el.classList.add("active");
+  // Activar modo arrastre visual en toda la tabla
+  document.body.classList.toggle("drag-mode", !!cod);
   if(cod){
     const meta = ESTADO_META[cod];
     el.style.background = meta.bg;
@@ -473,8 +486,8 @@ function renderTabla(){
     <th style="color:#ef4444;min-width:68px">FI<br>(hs)</th>
     <th style="color:#a78bfa;min-width:68px">FJ/VAC<br>(hs)</th>
     <th style="color:#ef4444;font-weight:800;min-width:76px">HS A<br>RECUP.</th>
-    <th style="color:#f0abfc;min-width:72px">HE<br>50%</th>
-    <th style="color:#e879f9;min-width:72px">HE<br>100%</th>
+    <th style="color:#f0abfc;min-width:72px">HS+<br>(50%)</th>
+    <th style="color:#e879f9;min-width:72px">HS++<br>(100%)</th>
   </tr>`;
   document.getElementById("tableHead").innerHTML=head;
 
@@ -482,7 +495,7 @@ function renderTabla(){
   let body="";
   function filaAsesor(asesor,turno){
     const hor=HORARIOS[turno];
-    let hsTeo=0,tardanzas=0,fi=0,fj=0,recup=0,he50=0,he100=0;
+    let hsTeo=0,tardanzas=0,fi=0,fj=0,recup=0,he50=0,he100=0,guard=0,hsRec=0;
     let celdas="";
     for(let d=1;d<=dias;d++){
       const f=fmtFecha(d,mesActual,anioActual);
@@ -491,39 +504,69 @@ function renderTabla(){
       const est=reg.estado||"";
       const ent=reg.horaEnt||"";
       const sal=reg.horaSal||"";
+      const hsEx  = parseFloat(reg.hsExtra||0);   // hs extra al 50% cargadas manualmente
+      const hsReg = parseFloat(reg.hsRec||0);      // hs recuperadas ese día
 
-      // acumulados
-      if(est==="G") hsTeo+=HS_GUARDIA;
-      else if(["P","T","FJ","VAC","LIC"].includes(est)){
-        if(dow===6)       hsTeo+=hor.hsSab;
-        else if(dow!==0)  hsTeo+=hor.hsSem;
-      }
-      if(est==="T"&&ent){
-        const t=Math.max(0,parseHora(ent)-((dow===6)?hor.entSab:hor.entSem));
-        tardanzas+=t; recup+=t;
-      }
-      if(est==="S"&&sal){
-        recup+=Math.max(0,((dow===6)?hor.salSab:hor.salSem)-parseHora(sal));
-      }
-      if(est==="FI") fi+=(dow===6)?hor.hsSab:hor.hsSem;
-      if(["FJ","VAC","LIC"].includes(est)) fj+=(dow===6)?hor.hsSab:hor.hsSem;
-      // horas extra: HE50 y HE100 cuentan la jornada del día como horas extra
-      if(est==="HE50")  he50 +=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
-      if(est==="HE100") he100+=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
+      const esLV  = dow>=1 && dow<=5;
+      const esSab = dow===6;
+      const esDom = dow===0;
+      const hsJornada = esLV ? 7 : esSab ? 4 : 0;
 
-      // celda
+      const debiaTrab = ["P","T","FJ","VAC","LIC","S","HS+","HS++"].includes(est);
+      if(!esDom && debiaTrab) hsTeo += hsJornada;
+      if(!esDom && est==="FI") hsTeo += hsJornada;
+
+      // Tardanza
+      if(est==="T" && ent){
+        const entTeo = esSab ? hor.entSab : hor.entSem;
+        const t = Math.max(0, parseHora(ent) - entTeo);
+        tardanzas += t;
+        recup += t;
+      }
+      // Salida anticipada
+      if(est==="S" && sal){
+        const salTeo = esSab ? hor.salSab : hor.salSem;
+        recup += Math.max(0, salTeo - parseHora(sal));
+      }
+      // Falta injustificada
+      if(est==="FI") fi += hsJornada;
+      // FJ / VAC / LIC
+      if(["FJ","VAC","LIC"].includes(est)) fj += hsJornada;
+      // Domingos guardia → HS++ automático
+      if(esDom && est==="G"){ he100 += HS_GUARDIA; guard++; }
+      // HS+ y HS++ día completo
+      if(est==="HS+" || est==="HS++"){
+        const hsExtra = (ent && sal)
+          ? Math.max(0, parseHora(sal) - parseHora(ent))
+          : hsJornada || HS_GUARDIA;
+        if(est==="HS+")  he50  += hsExtra;
+        if(est==="HS++") he100 += hsExtra;
+      }
+      // HS extra al 50% sobre un día P/T/S (campo numérico adicional)
+      if(hsEx > 0 && ["P","T","S","FR"].includes(est)) he50 += hsEx;
+      // HS recuperadas ese día (descuenta de lo que debe)
+      if(hsReg > 0) hsRec += hsReg;
+
+      // ── CELDA ──────────────────────────────────────────
       let clsCel="day-cell"+(dow===6?" sab":dow===0?" dom":"");
       const opts=ESTADOS.map(e=>
         `<option value="${e}" ${e===est?"selected":""}>${e||"–"}</option>`).join("");
-      const showEnt=(est==="T")||(est===""&&ent);
-      const showSal=(est==="S")||(est===""&&sal);
+      const showEnt=(est==="T")||(est==="HS+")||(est==="HS++")||(est===""&&ent);
+      const showSal=(est==="S")||(est==="HS+")||(est==="HS++")||(est===""&&sal);
+      // Mostrar campo HS extra si está en un día trabajado normal
+      const showHsEx = ["P","T","S","FR"].includes(est) && !esDom;
+      // Mostrar campo recupero siempre que haya un estado cargado (cualquier día)
+      const showRec  = est !== "" && !["VAC","LIC","FJ","FR"].includes(est);
 
       celdas+=`<td class="${clsCel}"
         data-asesor="${asesor}" data-fecha="${f}" data-col="${d}"
         onmousedown="inicioDrag(event,this)"
         onmouseover="moveDrag(this)"
         onmouseup="finDrag()">
-        <select class="day-select s-${est||"vacio"}"
+        <div class="drag-handle"
+          onmousedown="inicioDrag(event,this.parentElement)"
+          onmouseover="moveDrag(this.parentElement)"></div>
+        <select class="day-select s-${safeClass(est)}"
           data-asesor="${asesor}" data-fecha="${f}"
           onchange="setEstado(this)"
           title="${(ESTADO_META[est]||{l:'Sin estado'}).l}">
@@ -531,24 +574,35 @@ function renderTabla(){
         </select>
         ${showEnt?`<input class="hora-input" type="text" placeholder="HH:MM"
           value="${ent}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="horaEnt"
-          onchange="setHora(this)" style="display:block">`:``}
+          onchange="setHora(this)" style="display:block" title="Hora entrada">`:``}
         ${showSal?`<input class="hora-input" type="text" placeholder="HH:MM"
           value="${sal}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="horaSal"
-          onchange="setHora(this)" style="display:block;color:#f97316">`:``}
+          onchange="setHora(this)" style="display:block;color:#f97316" title="Hora salida">`:``}
+        ${showHsEx?`<input class="hora-input mini-num" type="number" min="0" max="12" step="0.5"
+          placeholder="HS+"
+          value="${hsEx||""}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="hsExtra"
+          onchange="setHora(this)"
+          style="display:block;color:#f0abfc;font-size:10px" title="Horas extra al 50%">`:``}
+        ${showRec?`<input class="hora-input mini-num" type="number" min="0" max="12" step="0.5"
+          placeholder="REC"
+          value="${hsReg||""}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="hsRec"
+          onchange="setHora(this)"
+          style="display:block;color:#22c55e;font-size:10px" title="Horas recuperadas">`:``}
       </td>`;
     }
+    const totalRecupFila = Math.max(0, recup + fi - hsRec);
     return `<tr class="turno-${turno==="MAÑ"?"manana":"tarde"}">
       <td class="name-cell">${asesor}</td>
       <td class="turno-badge"><span class="badge badge-${turno==="MAÑ"?"m":"t"}">${turno}</span></td>
       ${celdas}
       <td class="res-cell">${hsTeo.toFixed(0)}h</td>
-      <td class="res-cell" style="color:${tardanzas>0?"#f59e0b":"var(--muted)"}">${tardanzas>0?tardanzas.toFixed(2)+"h":"–"}</td>
+      <td class="res-cell" style="color:${tardanzas>0?"#f59e0b":"var(--muted)"}">${tardanzas>0?fmtHS(tardanzas):"–"}</td>
       <td class="res-cell" style="color:${fi>0?"#ef4444":"var(--muted)"}">${fi>0?fi.toFixed(0)+"h":"–"}</td>
       <td class="res-cell" style="color:${fj>0?"#a78bfa":"var(--muted)"}">${fj>0?fj.toFixed(0)+"h":"–"}</td>
-      <td class="res-cell" style="color:${recup>0?"#ef4444":recup===0?"#22c55e":"var(--muted)"};font-weight:${recup>0?700:400}">
-        ${recup>0?recup.toFixed(2)+"h":"–"}</td>
-      <td class="res-cell" style="color:${he50>0?"#f0abfc":"var(--muted)"}">${he50>0?he50.toFixed(1)+"h":"–"}</td>
-      <td class="res-cell" style="color:${he100>0?"#e879f9":"var(--muted)"};font-weight:${he100>0?700:400}">${he100>0?he100.toFixed(1)+"h":"–"}</td>
+      <td class="res-cell" style="color:${totalRecupFila>0?"#ef4444":"#22c55e"};font-weight:${totalRecupFila>0?700:400}">
+        ${totalRecupFila>0?fmtHS(totalRecupFila):"✓"}</td>
+      <td class="res-cell" style="color:${he50>0?"#f0abfc":"var(--muted)"}">${he50>0?fmtHS(he50):"–"}</td>
+      <td class="res-cell" style="color:${he100>0?"#e879f9":"var(--muted)"};font-weight:${he100>0?700:400}">${he100>0?fmtHS(he100):"–"}</td>
     </tr>`;
   }
 
@@ -566,51 +620,108 @@ function renderResumen(){
   for(const asesor of TODOS){
     const turno=MANANA.includes(asesor)?"MAÑ":"TARDE";
     const hor=HORARIOS[turno];
-    let hsTeo=0,tard=0,fi=0,fj=0,vac=0,lic=0,recup=0,guard=0,he50=0,he100=0;
+    let hsTeo=0,tard=0,fi=0,fj=0,vac=0,lic=0,recup=0,guard=0,he50=0,he100=0,hsRec=0;
     for(let d=1;d<=dias;d++){
       const f=fmtFecha(d,mesActual,anioActual);
       const dow=diasSemana(d,mesActual,anioActual);
       const reg=datos[clave(asesor,f)]||{};
       const est=reg.estado||"";
-      if(est==="G"){hsTeo+=HS_GUARDIA;guard++;}
-      else if(["P","T","FJ","VAC","LIC"].includes(est)){
-        if(dow===6)hsTeo+=hor.hsSab;else if(dow!==0)hsTeo+=hor.hsSem;}
-      if(est==="T"&&reg.horaEnt){const t=Math.max(0,parseHora(reg.horaEnt)-((dow===6)?hor.entSab:hor.entSem));tard+=t;recup+=t;}
-      if(est==="S"&&reg.horaSal) recup+=Math.max(0,((dow===6)?hor.salSab:hor.salSem)-parseHora(reg.horaSal));
-      if(est==="FI") fi+=(dow===6)?hor.hsSab:hor.hsSem;
-      if(est==="FJ") fj+=(dow===6)?hor.hsSab:hor.hsSem;
-      if(est==="VAC"){fj+=(dow===6)?hor.hsSab:hor.hsSem;vac++;}
-      if(est==="LIC"){fj+=(dow===6)?hor.hsSab:hor.hsSem;lic++;}
-      if(est==="HE50")  he50 +=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
-      if(est==="HE100") he100+=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
+
+      const esLV  = dow>=1 && dow<=5;
+      const esSab = dow===6;
+      const esDom = dow===0;
+      const hsJornada = esLV ? 7 : esSab ? 4 : 0;
+
+      // Horas teóricas: L-V y Sáb únicamente
+      const debiaTrab=["P","T","FJ","VAC","LIC","S","HS+","HS++","FI"].includes(est);
+      if(!esDom && debiaTrab) hsTeo += hsJornada;
+
+      // Tardanza
+      if(est==="T"&&reg.horaEnt){
+        const entTeo=esSab?hor.entSab:hor.entSem;
+        const t=Math.max(0,parseHora(reg.horaEnt)-entTeo);
+        tard+=t; recup+=t;
+      }
+      // Salida anticipada
+      if(est==="S"&&reg.horaSal){
+        const salTeo=esSab?hor.salSab:hor.salSem;
+        recup+=Math.max(0,salTeo-parseHora(reg.horaSal));
+      }
+      // Falta injustificada
+      if(est==="FI") fi+=hsJornada;
+      // FJ / VAC / LIC
+      if(est==="FJ") fj+=hsJornada;
+      if(est==="VAC"){fj+=hsJornada;vac++;}
+      if(est==="LIC"){fj+=hsJornada;lic++;}
+      // Domingos con G → HS++ automático
+      if(esDom && est==="G"){ he100+=HS_GUARDIA; guard++; }
+      // HS+ y HS++
+      if(est==="HS+"||est==="HS++"){
+        const hsExtra=(reg.horaEnt&&reg.horaSal)
+          ?Math.max(0,parseHora(reg.horaSal)-parseHora(reg.horaEnt))
+          :hsJornada||HS_GUARDIA;
+        if(est==="HS+")  he50 +=hsExtra;
+        if(est==="HS++") he100+=hsExtra;
+      }
+      // HS extra al 50% sobre día normal (campo numérico)
+      const hsEx=parseFloat(reg.hsExtra||0);
+      if(hsEx>0 && ["P","T","S","FR"].includes(est)) he50+=hsEx;
+      // HS recuperadas ese día
+      const hsReg=parseFloat(reg.hsRec||0);
+      if(hsReg>0) hsRec+=hsReg;
     }
     const col=MANANA.includes(asesor)?"var(--accent)":"var(--orange)";
+    // hs a recuperar = tardanzas + sal anticipadas + faltas injust (ya en recup solo tard+sal)
+    const totalRecup = recup + fi;
     html+=`<div class="res-card">
       <h3><span style="color:${col};font-size:15px">●</span> ${asesor}
         <span class="badge badge-${turno==="MAÑ"?"m":"t"}" style="margin-left:auto">${turno}</span></h3>
-      <div class="res-row"><span>HS Teóricas</span><strong>${hsTeo.toFixed(0)}h</strong></div>
-      <div class="res-row"><span>Tardanzas</span><strong style="color:${tard>0?"#f59e0b":"inherit"}">${tard>0?tard.toFixed(2)+"h":"–"}</strong></div>
-      <div class="res-row"><span>Faltas Injust.</span><strong style="color:${fi>0?"#ef4444":"inherit"}">${fi>0?fi.toFixed(0)+"h":"–"}</strong></div>
-      <div class="res-row"><span>FJ / VAC / LIC</span><strong style="color:#a78bfa">${fj>0?fj.toFixed(0)+"h":"–"}</strong></div>
-      <div class="res-row"><span>Días Vacaciones</span><strong>${vac>0?vac+"d":"–"}</strong></div>
-      <div class="res-row"><span>Días Licencia</span><strong>${lic>0?lic+"d":"–"}</strong></div>
-      <div class="res-row"><span>Días Guardia</span><strong style="color:#c084fc">${guard>0?guard+"d":"–"}</strong></div>
+
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+                  margin:8px 0 4px;font-weight:700">Jornada obligatoria (L–V 7h · Sáb 4h)</div>
+      <div class="res-row"><span>HS Teóricas del mes</span><strong>${hsTeo.toFixed(0)}h</strong></div>
       <div class="res-row">
-        <span style="color:#f0abfc">⚡ HS Extra 50%</span>
-        <strong style="color:${he50>0?"#f0abfc":"inherit"}">${he50>0?he50.toFixed(1)+"h":"–"}</strong></div>
+        <span>Tardanzas acumuladas</span>
+        <strong style="color:${tard>0?"#f59e0b":"inherit"}">${tard>0?fmtHS(tard):"–"}</strong></div>
       <div class="res-row">
-        <span style="color:#e879f9">⚡ HS Extra 100%</span>
-        <strong style="color:${he100>0?"#e879f9":"inherit"};font-weight:${he100>0?700:400}">${he100>0?he100.toFixed(1)+"h":"–"}</strong></div>
+        <span>Faltas injustificadas</span>
+        <strong style="color:${fi>0?"#ef4444":"inherit"}">${fi>0?fi.toFixed(0)+"h":"–"}</strong></div>
       <div class="res-row">
-        <span style="font-size:11px;color:var(--muted2)">Valor 50% (ref. 7h/día)</span>
-        <strong style="color:#f0abfc;font-size:11px">${he50>0?"×1.5 = "+(he50*1.5).toFixed(1)+"h eq.":"–"}</strong></div>
+        <span>FJ / VAC / LIC</span>
+        <strong style="color:#a78bfa">${fj>0?fj.toFixed(0)+"h":"–"}</strong></div>
+      ${vac>0?`<div class="res-row"><span style="padding-left:10px">↳ Días vacaciones</span><strong>${vac}d</strong></div>`:""}
+      ${lic>0?`<div class="res-row"><span style="padding-left:10px">↳ Días licencia</span><strong>${lic}d</strong></div>`:""}
+
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+                  margin:10px 0 4px;font-weight:700">⚠ Balance</div>
+      ${hsRec>0?`<div class="res-row">
+        <span style="color:#22c55e">✓ HS recuperadas</span>
+        <strong style="color:#22c55e">−${fmtHS(hsRec)}</strong></div>`:""}
+      <div class="res-row" style="background:${Math.max(0,recup+fi-hsRec)>0?"rgba(239,68,68,.06)":"rgba(34,197,94,.06)"};
+           border-radius:6px;padding:8px 10px;margin-bottom:4px">
+        <span style="font-weight:700;color:var(--text)">HS a recuperar</span>
+        <strong style="color:${Math.max(0,recup+fi-hsRec)>0?"#ef4444":"#22c55e"};font-size:16px">
+          ${Math.max(0,recup+fi-hsRec)>0?fmtHS(Math.max(0,recup+fi-hsRec)):"✓ Al día"}</strong></div>
+      ${(recup+fi)>0?`
+      <div class="res-row" style="font-size:11px">
+        <span style="color:var(--muted2)">Desglose deuda</span>
+        <span style="color:var(--muted2)">${tard>0?fmtHS(tard)+" tard.":""}${tard>0&&fi>0?" + ":""}${fi>0?fi.toFixed(0)+"h FI":""}</span>
+      </div>`:""}
+
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+                  margin:10px 0 4px;font-weight:700">⚡ Horas extras</div>
       <div class="res-row">
-        <span style="font-size:11px;color:var(--muted2)">Valor 100% (ref. 7h/día)</span>
-        <strong style="color:#e879f9;font-size:11px">${he100>0?"×2.0 = "+(he100*2).toFixed(1)+"h eq.":"–"}</strong></div>
+        <span style="color:#f0abfc">HS+ (50%)</span>
+        <strong style="color:${he50>0?"#f0abfc":"var(--muted)"}">${he50>0?fmtHS(he50):"–"}</strong></div>
+      ${he50>0?`<div class="res-row" style="font-size:11px">
+        <span style="color:var(--muted2)">↳ Valor liquidación</span>
+        <strong style="color:#f0abfc">×1.5 = ${fmtHS(he50*1.5)}</strong></div>`:""}
       <div class="res-row">
-        <span style="font-weight:700;color:var(--text)">⚠ HS A RECUPERAR</span>
-        <strong style="color:${recup>0?"#ef4444":"#22c55e"};font-size:15px">
-          ${recup>0?recup.toFixed(2)+"h":"✓ 0h"}</strong></div>
+        <span style="color:#e879f9">HS++ (100%) ${guard>0?"incl. "+guard+" dom.":""}</span>
+        <strong style="color:${he100>0?"#e879f9":"var(--muted)"}">${he100>0?fmtHS(he100):"–"}</strong></div>
+      ${he100>0?`<div class="res-row" style="font-size:11px">
+        <span style="color:var(--muted2)">↳ Valor liquidación</span>
+        <strong style="color:#e879f9">×2.0 = ${fmtHS(he100*2)}</strong></div>`:""}
     </div>`;
   }
   document.getElementById("resumenGrid").innerHTML=html;
@@ -639,28 +750,52 @@ function renderGuardias(){
 }
 
 /* ══════════════════════════════════════════
-   LÓGICA DE ARRASTRE
+   LÓGICA DE ARRASTRE (horizontal + vertical)
 ══════════════════════════════════════════ */
+// dragAsesor ahora es un SET de asesores (arrastre vertical = múltiples filas)
+let dragAsesores = [];   // array ordenado de asesores en el rango vertical
+
 function inicioDrag(e, td){
-  if(!dragEstado) return;              // sin código activo, no arrastrar
-  if(e.target.tagName==="SELECT"||e.target.tagName==="INPUT") return; // no interferir
+  if(!dragEstado) return;
+  if(e.target.tagName==="SELECT"||e.target.tagName==="INPUT") return;
   e.preventDefault();
-  isDragging  = true;
-  dragAsesor  = td.dataset.asesor;
-  dragStartCol= +td.dataset.col;
-  dragEndCol  = dragStartCol;
+  isDragging   = true;
+  dragAsesor   = td.dataset.asesor;   // asesor de inicio
+  dragAsesores = [dragAsesor];
+  dragStartCol = +td.dataset.col;
+  dragEndCol   = dragStartCol;
   document.body.classList.add("dragging");
+  resaltarDrag();
   aplicarRangoDrag();
 }
 
 function moveDrag(td){
   if(!isDragging) return;
-  if(td.dataset.asesor !== dragAsesor) return; // solo la misma fila
-  const col = +td.dataset.col;
-  if(col !== dragEndCol){
-    dragEndCol = col;
-    resaltarDrag();
+  const col    = +td.dataset.col;
+  const asesor = td.dataset.asesor;
+  if(!asesor) return;
+
+  let changed = false;
+
+  // Cambio horizontal
+  if(col !== dragEndCol){ dragEndCol = col; changed = true; }
+
+  // Cambio vertical — calcular rango de asesores entre inicio y celda actual
+  if(asesor !== dragAsesor || dragAsesores.length > 1){
+    const idxInicio  = TODOS.indexOf(dragAsesor);
+    const idxActual  = TODOS.indexOf(asesor);
+    if(idxInicio !== -1 && idxActual !== -1){
+      const desde = Math.min(idxInicio, idxActual);
+      const hasta  = Math.max(idxInicio, idxActual);
+      const nuevo  = TODOS.slice(desde, hasta + 1);
+      if(JSON.stringify(nuevo) !== JSON.stringify(dragAsesores)){
+        dragAsesores = nuevo;
+        changed = true;
+      }
+    }
   }
+
+  if(changed) resaltarDrag();
 }
 
 function finDrag(){
@@ -674,33 +809,34 @@ function finDrag(){
 }
 
 function aplicarRangoDrag(){
-  if(!dragAsesor || !dragEstado) return;
+  if(!dragAsesor || !dragEstado || !dragAsesores.length) return;
   const desde = Math.min(dragStartCol, dragEndCol);
   const hasta  = Math.max(dragStartCol, dragEndCol);
-  for(let d=desde; d<=hasta; d++){
-    const f = fmtFecha(d, mesActual, anioActual);
-    const k = clave(dragAsesor, f);
-    if(!datos[k]) datos[k]={};
-    datos[k].estado = dragEstado;
-    // limpiar horas si el nuevo estado no las necesita
-    if(!["T","S"].includes(dragEstado)){
-      delete datos[k].horaEnt;
-      delete datos[k].horaSal;
+  for(const a of dragAsesores){
+    for(let d=desde; d<=hasta; d++){
+      const f = fmtFecha(d, mesActual, anioActual);
+      const k = clave(a, f);
+      if(!datos[k]) datos[k]={};
+      datos[k].estado = dragEstado;
+      if(!["T","S","HS+","HS++"].includes(dragEstado)){
+        delete datos[k].horaEnt;
+        delete datos[k].horaSal;
+      }
     }
   }
 }
 
 function resaltarDrag(){
-  // Quitar resaltado previo
   document.querySelectorAll(".drag-preview").forEach(el=>el.classList.remove("drag-preview"));
-  if(!dragAsesor) return;
-  const desde=Math.min(dragStartCol,dragEndCol);
-  const hasta =Math.max(dragStartCol,dragEndCol);
-  // Resaltar celdas en el rango
-  document.querySelectorAll(`td.day-cell[data-asesor="${dragAsesor}"]`).forEach(td=>{
-    const col=+td.dataset.col;
-    if(col>=desde && col<=hasta) td.classList.add("drag-preview");
-  });
+  if(!dragAsesor || !dragAsesores.length) return;
+  const desde = Math.min(dragStartCol, dragEndCol);
+  const hasta  = Math.max(dragStartCol, dragEndCol);
+  for(const a of dragAsesores){
+    document.querySelectorAll(`td.day-cell[data-asesor="${CSS.escape(a)}"]`).forEach(td=>{
+      const col=+td.dataset.col;
+      if(col>=desde && col<=hasta) td.classList.add("drag-preview");
+    });
+  }
 }
 
 function limpiarResalteDrag(){
@@ -715,7 +851,7 @@ function setEstado(sel){
   const k=clave(a,f);
   if(!datos[k]) datos[k]={};
   datos[k].estado=v;
-  if(!["T","S"].includes(v)){delete datos[k].horaEnt;delete datos[k].horaSal;}
+  if(!["T","S","HS+","HS++"].includes(v)){delete datos[k].horaEnt;delete datos[k].horaSal;}
   render();
 }
 function setHora(inp){
@@ -724,6 +860,17 @@ function setHora(inp){
   datos[k][inp.dataset.tipo]=inp.value.trim();
 }
 function parseHora(s){if(!s)return 0;const p=s.split(":");return +p[0]+(+p[1]||0)/60}
+function fmtHS(h){
+  if(h<=0) return "0h";
+  const hh=Math.floor(h);
+  const mm=Math.round((h-hh)*60);
+  return mm>0?`${hh}h ${String(mm).padStart(2,"0")}m`:`${hh}h`;
+}
+function safeClass(est){
+  if(est==="HS+")  return "HSmas";
+  if(est==="HS++") return "HSmas2";
+  return est||"vacio";
+}
 
 /* ── TABS ── */
 function setTab(nombre,el){
@@ -810,8 +957,9 @@ function exportarCSV(){
       const hor2=HORARIOS[turno];
       const dow2=diasSemana(d,mesActual,anioActual);
       const hsD=(dow2===6)?hor2.hsSab:(dow2===0?HS_GUARDIA:hor2.hsSem);
+      const hsExtra=(reg.horaEnt&&reg.horaSal)?Math.max(0,parseHora(reg.horaSal)-parseHora(reg.horaEnt)):hsD;
       rows.push([a,turno,f,DIAS_SEM[dow2],reg.estado||"",reg.horaEnt||"",reg.horaSal||"",
-        reg.estado==="HE50"?hsD:"",reg.estado==="HE100"?hsD:""]);
+        reg.estado==="HS+"?hsExtra:"",reg.estado==="HS++"?hsExtra:""]);
     }
   }
   const blob=new Blob([rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8;"});
