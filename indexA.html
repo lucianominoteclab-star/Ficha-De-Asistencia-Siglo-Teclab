@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistencia – Call Center</title>
+<style>
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3350;
+  --accent:#4f8ef7;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;
+  --orange:#f97316;--purple:#a855f7;--text:#e2e8f0;--muted:#64748b;
+  --muted2:#94a3b8;--card-r:10px;
+  --font-mono:'JetBrains Mono','Fira Code','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',sans-serif;
+     min-height:100vh;font-size:14px;overflow-x:hidden;user-select:none}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,var(--surface),var(--surface2));
+  border-bottom:1px solid var(--border);padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:60px;position:sticky;top:0;z-index:100;backdrop-filter:blur(8px)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.header-right{display:flex;align-items:center;gap:10px}
+
+main{max-width:1700px;margin:0 auto;padding:20px 16px}
+
+/* ── CONTROLES ── */
+.top-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+select{background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:8px;font-size:13px;outline:none;cursor:pointer;transition:border-color .2s}
+select:hover,select:focus{border-color:var(--accent)}
+label{font-size:12px;color:var(--muted2);margin-right:4px}
+
+/* ── STAT CARDS ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r);
+  padding:14px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;inset:0;opacity:.06;background:var(--c)}
+.stat-card .val{font-size:26px;font-weight:800;color:var(--c);font-variant-numeric:tabular-nums}
+.stat-card .lbl{font-size:11px;color:var(--muted2);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+
+/* ── LEYENDA ── */
+.leyenda-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--card-r);padding:12px 14px;align-items:center}
+.leyenda-title{font-size:11px;font-weight:700;color:var(--muted2);
+  text-transform:uppercase;letter-spacing:.08em;margin-right:6px;white-space:nowrap}
+.ley-item{display:flex;align-items:center;gap:5px;padding:4px 10px;
+  border-radius:6px;border:1px solid var(--border);cursor:default;
+  transition:transform .1s;font-size:12px}
+.ley-item:hover{transform:translateY(-1px)}
+.ley-code{font-weight:800;font-family:var(--font-mono);font-size:12px}
+.ley-desc{color:var(--muted2);font-size:11px}
+
+/* ── MODO ARRASTRE ── */
+.drag-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--card-r);padding:10px 14px}
+.drag-bar-title{font-size:12px;font-weight:700;color:var(--muted2);text-transform:uppercase;
+  letter-spacing:.06em;margin-right:4px}
+.drag-pill{padding:5px 14px;border-radius:20px;border:2px solid var(--border);
+  cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font-mono);
+  background:var(--surface);color:var(--text);transition:all .15s}
+.drag-pill:hover{border-color:var(--accent)}
+.drag-pill.active{border-color:currentColor;box-shadow:0 0 0 3px rgba(255,255,255,.08)}
+.drag-hint{font-size:11px;color:var(--muted);margin-left:auto}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;margin-bottom:14px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:4px;width:fit-content}
+.tab{padding:7px 18px;border-radius:7px;cursor:pointer;font-size:13px;
+  font-weight:500;transition:all .2s;color:var(--muted2)}
+.tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.4)}
+
+/* ── TABLA ── */
+.table-wrap{overflow-x:auto;border-radius:var(--card-r);border:1px solid var(--border);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:800px}
+thead tr th{background:var(--surface2);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted2);
+  padding:10px 8px;position:sticky;top:0;white-space:nowrap;border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid rgba(46,51,80,.5);transition:background .1s}
+tbody tr:hover{background:rgba(79,142,247,.03)}
+tbody tr.turno-tarde  td.name-cell{border-left:3px solid var(--orange)}
+tbody tr.turno-manana td.name-cell{border-left:3px solid var(--accent)}
+td{padding:0;vertical-align:middle}
+td.name-cell{padding:0 12px;min-width:118px;font-weight:600;font-size:13px;white-space:nowrap}
+td.turno-badge{padding:0 6px;white-space:nowrap}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.05em}
+.badge-m{background:rgba(79,142,247,.15);color:var(--accent)}
+.badge-t{background:rgba(249,115,22,.15);color:var(--orange)}
+
+/* celdas de días */
+td.day-cell{padding:2px;min-width:42px;max-width:52px;text-align:center;position:relative;transition:outline .05s}
+td.day-cell.sab{background:rgba(79,142,247,.05)}
+td.day-cell.dom{background:rgba(168,85,247,.07)}
+td.day-cell.drag-over{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
+td.day-cell.drag-preview{background:rgba(79,142,247,.15)!important}
+
+.day-select{width:100%;border:none;outline:none;text-align:center;
+  font-size:12px;font-weight:700;border-radius:4px;padding:4px 2px;cursor:pointer;
+  background:transparent;color:var(--text);font-family:var(--font-mono);transition:background .1s}
+.day-select:focus{background:var(--surface2);outline:2px solid var(--accent)}
+
+/* estado colores */
+.s-P  {color:#22c55e}
+.s-T  {color:#f59e0b;background:rgba(245,158,11,.08)}
+.s-FJ {color:#60a5fa;background:rgba(96,165,250,.08)}
+.s-FI {color:#ef4444;background:rgba(239,68,68,.1)}
+.s-VAC{color:#34d399;background:rgba(52,211,153,.08)}
+.s-LIC{color:#a78bfa;background:rgba(167,139,250,.08)}
+.s-S  {color:#fb923c;background:rgba(251,146,60,.08)}
+.s-G  {color:#c084fc;background:rgba(192,132,252,.1)}
+.s-FR   {color:#475569;background:rgba(71,85,105,.08)}
+.s-HE50 {color:#f0abfc;background:rgba(240,171,252,.10)}
+.s-HE100{color:#e879f9;background:rgba(232,121,249,.12);font-weight:900}
+
+/* hora */
+input.hora-input{width:100%;border:none;border-bottom:1px solid var(--border);
+  background:transparent;color:var(--amber);font-size:11px;text-align:center;
+  padding:4px 2px;font-family:var(--font-mono);outline:none;transition:border-color .2s}
+input.hora-input:focus{border-color:var(--accent)}
+input.hora-input::placeholder{color:var(--muted)}
+
+/* resumen fila */
+td.res-cell{padding:6px 10px;text-align:center;white-space:nowrap;
+  font-size:12px;font-family:var(--font-mono);min-width:70px}
+
+/* separador turno */
+tr.section-sep td{padding:8px 16px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);
+  background:var(--surface2);border-top:2px solid var(--border)}
+
+/* ── RESUMEN ── */
+.resumen-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.res-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r);padding:15px}
+.res-card h3{font-size:13px;font-weight:700;margin-bottom:11px;display:flex;align-items:center;gap:8px}
+.res-row{display:flex;justify-content:space-between;padding:5px 0;
+  border-bottom:1px solid rgba(46,51,80,.4);font-size:12px;color:var(--muted2)}
+.res-row:last-child{border-bottom:none}
+.res-row strong{color:var(--text);font-family:var(--font-mono)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);
+  z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:28px;min-width:340px;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.modal h2{font-size:16px;margin-bottom:6px}
+.modal .sub{color:var(--muted2);font-size:12px;margin-bottom:18px}
+.guardia-list{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
+.guardia-item{display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .15s}
+.guardia-item:hover{border-color:var(--accent);background:rgba(79,142,247,.06)}
+.guardia-item.sel{border-color:var(--purple);background:rgba(168,85,247,.1)}
+.guardia-item input[type=checkbox]{accent-color:var(--purple);width:15px;height:15px}
+.modal-footer{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+
+/* ── BOTONES ── */
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.3)}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-ghost{background:transparent;color:var(--muted2);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--text)}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;
+  background:var(--surface2);border:1px solid var(--green);border-radius:8px;
+  color:var(--green);font-weight:600;z-index:300;
+  transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* ── CURSOR ARRASTRE ── */
+body.dragging{cursor:crosshair!important}
+body.dragging *{cursor:crosshair!important}
+
+@media(max-width:680px){
+  header{padding:0 12px}
+  main{padding:12px 8px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .drag-hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>Asistencia · Call Center</div>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="abrirGuardia()">🛡 Guardia</button>
+    <button class="btn btn-primary btn-sm" onclick="guardarDatos()">💾 Guardar</button>
+  </div>
+</header>
+
+<!-- MODAL GUARDIA -->
+<div class="modal-overlay" id="guardiaModal">
+  <div class="modal">
+    <h2>Asignar Guardia</h2>
+    <p class="sub" id="guardiaSubtitle">Seleccioná 3 asesores para el día</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div><label>Día</label><select id="guardiaDia" onchange="renderGuardiaList()"></select></div>
+      <div><label>Mes</label><select id="guardiaMes" onchange="renderGuardiaList()"></select></div>
+      <div><label>Año</label><select id="guardiaAnio" onchange="renderGuardiaList()"></select></div>
+    </div>
+    <div class="guardia-list" id="guardiaList"></div>
+    <div id="guardiaCnt" style="margin-top:10px;font-size:12px;color:var(--muted2)"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarGuardia()">Cancelar</button>
+      <button class="btn btn-primary" onclick="aplicarGuardia()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div><label>Mes</label><select id="selMes" onchange="cambiarMes()"></select></div>
+    <div><label>Año</label><select id="selAnio" onchange="cambiarMes()"></select></div>
+    <button class="btn btn-ghost btn-sm" onclick="irHoy()">Hoy</button>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="exportarCSV()">⬇ CSV</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats" id="statsBar"></div>
+
+  <!-- LEYENDA -->
+  <div class="leyenda-bar" id="leyendaBar"></div>
+
+  <!-- MODO ARRASTRE -->
+  <div class="drag-bar">
+    <span class="drag-bar-title">✏ Carga masiva:</span>
+    <div id="dragPills"></div>
+    <span class="drag-hint">Elegí un código → hacé clic y arrastrá por los días de un asesor</span>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="setTab('asistencia',this)">📋 Asistencia</div>
+    <div class="tab" onclick="setTab('resumen',this)">📊 Resumen</div>
+    <div class="tab" onclick="setTab('guardias',this)">🛡 Guardias</div>
+  </div>
+
+  <!-- ASISTENCIA -->
+  <div id="vista-asistencia">
+    <div class="table-wrap">
+      <table id="mainTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESUMEN -->
+  <div id="vista-resumen" style="display:none">
+    <div class="resumen-grid" id="resumenGrid"></div>
+  </div>
+
+  <!-- GUARDIAS -->
+  <div id="vista-guardias" style="display:none">
+    <div class="table-wrap" style="padding:16px">
+      <h3 style="margin-bottom:12px;color:var(--muted2);font-size:13px;text-transform:uppercase;letter-spacing:.06em">
+        Guardias asignadas</h3>
+      <div id="guardiaLogBody"></div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   DATOS BASE
+══════════════════════════════════════════ */
+const MANANA = ["CAMI","GABI","CIELO","MILENA","MAKARENA","MAGALI","MICA G",
+                "AYLEN","JIMENA","MARIANA","ABRIL","NATASHA","LEILA","JOAQUIN","CANDELA"];
+const TARDE  = ["LUANA","VICTORIA","CAMILA","MILI","LOURDES","ANTONELLA",
+                "LUIGI","CECILIA","JULIETA","SOFIA"];
+const TODOS  = [...MANANA,...TARDE];
+
+const HORARIOS = {
+  MAÑ:  {entSem:9, salSem:16,entSab:9, salSab:13,hsSem:7,hsSab:4},
+  TARDE:{entSem:14,salSem:21,entSab:15,salSab:19,hsSem:7,hsSab:4}
+};
+const HS_GUARDIA = 4;
+
+// Código, etiqueta, color texto, color fondo claro
+const ESTADOS_DEF = [
+  {c:"P",  l:"Presente",       color:"#22c55e", bg:"rgba(34,197,94,.12)"},
+  {c:"T",  l:"Llegada tarde",  color:"#f59e0b", bg:"rgba(245,158,11,.12)"},
+  {c:"FJ", l:"Falta justif.",  color:"#60a5fa", bg:"rgba(96,165,250,.12)"},
+  {c:"FI", l:"Falta injust.",  color:"#ef4444", bg:"rgba(239,68,68,.12)"},
+  {c:"VAC",l:"Vacaciones",     color:"#34d399", bg:"rgba(52,211,153,.12)"},
+  {c:"LIC",l:"Licencia",       color:"#a78bfa", bg:"rgba(167,139,250,.12)"},
+  {c:"S",  l:"Salida anticip.",color:"#fb923c", bg:"rgba(251,146,60,.12)"},
+  {c:"G",  l:"Guardia",        color:"#c084fc", bg:"rgba(192,132,252,.12)"},
+  {c:"FR", l:"Franco",         color:"#64748b", bg:"rgba(71,85,105,.12)"},
+  {c:"HE50", l:"Hs extra 50%", color:"#f0abfc", bg:"rgba(240,171,252,.12)"},
+  {c:"HE100",l:"Hs extra 100%",color:"#e879f9", bg:"rgba(232,121,249,.12)"},
+];
+const ESTADOS     = ["", ...ESTADOS_DEF.map(e=>e.c)];
+const ESTADO_META = Object.fromEntries(ESTADOS_DEF.map(e=>[e.c,e]));
+const MESES       = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                     "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_SEM    = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+let mesActual, anioActual;
+let datos    = {};
+let guardias = {};
+let tabActiva = "asistencia";
+
+/* ── modo arrastre ── */
+let dragEstado   = null;   // código activo en la barra
+let isDragging   = false;
+let dragAsesor   = null;   // fila que se está arrastrando
+let dragStartCol = null;
+let dragEndCol   = null;
+
+/* ══════════════════════════════════════════
+   PERSISTENCIA
+══════════════════════════════════════════ */
+function clave(a,f){return `${a}::${f}`}
+function guardarDatos(){
+  localStorage.setItem("att_datos",    JSON.stringify(datos));
+  localStorage.setItem("att_guardias", JSON.stringify(guardias));
+  toast("Guardado ✓");
+}
+function cargarDatos(){
+  try{
+    const d=localStorage.getItem("att_datos");
+    const g=localStorage.getItem("att_guardias");
+    if(d) datos    = JSON.parse(d);
+    if(g) guardias = JSON.parse(g);
+  }catch(e){datos={};guardias={}}
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+function init(){
+  cargarDatos();
+  const hoy = new Date();
+  mesActual  = hoy.getMonth();
+  anioActual = hoy.getFullYear();
+  buildSelects();
+  buildLeyenda();
+  buildDragPills();
+  render();
+  setInterval(guardarDatos, 60000);
+
+  // Liberar arrastre si el mouse sale de la ventana
+  document.addEventListener("mouseup", finDrag);
+  document.addEventListener("mouseleave", finDrag);
+}
+
+function buildSelects(){
+  const sm=document.getElementById("selMes");
+  const sa=document.getElementById("selAnio");
+  sm.innerHTML=MESES.map((m,i)=>`<option value="${i}" ${i===mesActual?"selected":""}>${m}</option>`).join("");
+  for(let y=2025;y<=2029;y++)
+    sa.innerHTML+=`<option value="${y}" ${y===anioActual?"selected":""}>${y}</option>`;
+}
+
+function cambiarMes(){
+  mesActual =+document.getElementById("selMes").value;
+  anioActual=+document.getElementById("selAnio").value;
+  render();
+}
+function irHoy(){
+  const h=new Date();mesActual=h.getMonth();anioActual=h.getFullYear();
+  document.getElementById("selMes").value=mesActual;
+  document.getElementById("selAnio").value=anioActual;
+  render();
+}
+
+/* ── LEYENDA ── */
+function buildLeyenda(){
+  const bar = document.getElementById("leyendaBar");
+  bar.innerHTML = `<span class="leyenda-title">📖 Códigos:</span>` +
+    ESTADOS_DEF.map(e=>`
+      <div class="ley-item" style="background:${e.bg};border-color:${e.color}44">
+        <span class="ley-code" style="color:${e.color}">${e.c}</span>
+        <span class="ley-desc">${e.l}</span>
+      </div>`).join("");
+}
+
+/* ── DRAG PILLS ── */
+function buildDragPills(){
+  const cont = document.getElementById("dragPills");
+  cont.style.cssText="display:flex;flex-wrap:wrap;gap:6px";
+  // Pill "ninguno" para desactivar
+  cont.innerHTML = `<button class="drag-pill" style="color:var(--muted)" 
+    onclick="selDragEstado(null,this)" id="pill-none">✕ Ninguno</button>` +
+    ESTADOS_DEF.map(e=>`
+      <button class="drag-pill" style="color:${e.color};border-color:${e.color}55"
+        onclick="selDragEstado('${e.c}',this)" id="pill-${e.c}">
+        ${e.c}
+      </button>`).join("");
+}
+
+function selDragEstado(cod, el){
+  dragEstado = cod;
+  document.querySelectorAll(".drag-pill").forEach(p=>p.classList.remove("active"));
+  el.classList.add("active");
+  if(cod){
+    const meta = ESTADO_META[cod];
+    el.style.background = meta.bg;
+    el.style.boxShadow  = `0 0 0 3px ${meta.color}33`;
+    toast(`Modo arrastre: ${cod} – ${meta.l}`, "blue");
+  } else {
+    el.style.background="var(--surface)";
+    el.style.boxShadow="none";
+  }
+}
+
+/* ══════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════ */
+function render(){
+  renderStats();
+  if(tabActiva==="asistencia") renderTabla();
+  if(tabActiva==="resumen")    renderResumen();
+  if(tabActiva==="guardias")   renderGuardias();
+}
+
+/* ── STATS ── */
+function renderStats(){
+  const dias=diasEnMes(mesActual,anioActual);
+  let presentes=0,tard=0,fi=0,vac=0;
+  for(const a of TODOS) for(let d=1;d<=dias;d++){
+    const est=(datos[clave(a,fmtFecha(d,mesActual,anioActual))]||{}).estado||"";
+    if(est==="P"||est==="T") presentes++;
+    if(est==="T") tard++;
+    if(est==="FI") fi++;
+    if(est==="VAC") vac++;
+  }
+  const cards=[
+    {val:presentes,lbl:"Presencias",c:"#4f8ef7"},
+    {val:tard,     lbl:"Tardanzas",  c:"#f59e0b"},
+    {val:fi,       lbl:"F. Injust.", c:"#ef4444"},
+    {val:vac,      lbl:"Vacaciones", c:"#22c55e"},
+    {val:MANANA.length,lbl:"T. Mañana",c:"#60a5fa"},
+    {val:TARDE.length, lbl:"T. Tarde", c:"#f97316"},
+  ];
+  document.getElementById("statsBar").innerHTML=
+    cards.map(c=>`<div class="stat-card" style="--c:${c.c}">
+      <div class="val">${c.val}</div><div class="lbl">${c.lbl}</div></div>`).join("");
+}
+
+/* ── TABLA ── */
+function renderTabla(){
+  const dias=diasEnMes(mesActual,anioActual);
+  // CABECERA
+  let head=`<tr>
+    <th style="min-width:118px;text-align:left;padding-left:12px">Asesor</th>
+    <th style="min-width:58px">Turno</th>`;
+  for(let d=1;d<=dias;d++){
+    const dow=diasSemana(d,mesActual,anioActual);
+    const nm=["D","L","M","X","J","V","S"][dow];
+    const cls=dow===6?"th-sab":dow===0?"th-dom":"";
+    head+=`<th class="${cls}" style="min-width:42px;background:${
+      dow===6?"rgba(79,142,247,.07)":dow===0?"rgba(168,85,247,.1)":"var(--surface2)"
+    };color:${dow===6?"var(--accent)":dow===0?"var(--purple)":"var(--muted2)"}">
+      ${nm}<br><span style="font-size:10px;opacity:.7">${d}</span></th>`;
+  }
+  head+=`
+    <th style="color:#22c55e;min-width:68px">HS<br>Teór.</th>
+    <th style="color:#f59e0b;min-width:68px">Tard.<br>(hs)</th>
+    <th style="color:#ef4444;min-width:68px">FI<br>(hs)</th>
+    <th style="color:#a78bfa;min-width:68px">FJ/VAC<br>(hs)</th>
+    <th style="color:#ef4444;font-weight:800;min-width:76px">HS A<br>RECUP.</th>
+    <th style="color:#f0abfc;min-width:72px">HE<br>50%</th>
+    <th style="color:#e879f9;min-width:72px">HE<br>100%</th>
+  </tr>`;
+  document.getElementById("tableHead").innerHTML=head;
+
+  // BODY
+  let body="";
+  function filaAsesor(asesor,turno){
+    const hor=HORARIOS[turno];
+    let hsTeo=0,tardanzas=0,fi=0,fj=0,recup=0,he50=0,he100=0;
+    let celdas="";
+    for(let d=1;d<=dias;d++){
+      const f=fmtFecha(d,mesActual,anioActual);
+      const dow=diasSemana(d,mesActual,anioActual);
+      const reg=datos[clave(asesor,f)]||{};
+      const est=reg.estado||"";
+      const ent=reg.horaEnt||"";
+      const sal=reg.horaSal||"";
+
+      // acumulados
+      if(est==="G") hsTeo+=HS_GUARDIA;
+      else if(["P","T","FJ","VAC","LIC"].includes(est)){
+        if(dow===6)       hsTeo+=hor.hsSab;
+        else if(dow!==0)  hsTeo+=hor.hsSem;
+      }
+      if(est==="T"&&ent){
+        const t=Math.max(0,parseHora(ent)-((dow===6)?hor.entSab:hor.entSem));
+        tardanzas+=t; recup+=t;
+      }
+      if(est==="S"&&sal){
+        recup+=Math.max(0,((dow===6)?hor.salSab:hor.salSem)-parseHora(sal));
+      }
+      if(est==="FI") fi+=(dow===6)?hor.hsSab:hor.hsSem;
+      if(["FJ","VAC","LIC"].includes(est)) fj+=(dow===6)?hor.hsSab:hor.hsSem;
+      // horas extra: HE50 y HE100 cuentan la jornada del día como horas extra
+      if(est==="HE50")  he50 +=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
+      if(est==="HE100") he100+=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
+
+      // celda
+      let clsCel="day-cell"+(dow===6?" sab":dow===0?" dom":"");
+      const opts=ESTADOS.map(e=>
+        `<option value="${e}" ${e===est?"selected":""}>${e||"–"}</option>`).join("");
+      const showEnt=(est==="T")||(est===""&&ent);
+      const showSal=(est==="S")||(est===""&&sal);
+
+      celdas+=`<td class="${clsCel}"
+        data-asesor="${asesor}" data-fecha="${f}" data-col="${d}"
+        onmousedown="inicioDrag(event,this)"
+        onmouseover="moveDrag(this)"
+        onmouseup="finDrag()">
+        <select class="day-select s-${est||"vacio"}"
+          data-asesor="${asesor}" data-fecha="${f}"
+          onchange="setEstado(this)"
+          title="${(ESTADO_META[est]||{l:'Sin estado'}).l}">
+          ${opts}
+        </select>
+        ${showEnt?`<input class="hora-input" type="text" placeholder="HH:MM"
+          value="${ent}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="horaEnt"
+          onchange="setHora(this)" style="display:block">`:``}
+        ${showSal?`<input class="hora-input" type="text" placeholder="HH:MM"
+          value="${sal}" data-asesor="${asesor}" data-fecha="${f}" data-tipo="horaSal"
+          onchange="setHora(this)" style="display:block;color:#f97316">`:``}
+      </td>`;
+    }
+    return `<tr class="turno-${turno==="MAÑ"?"manana":"tarde"}">
+      <td class="name-cell">${asesor}</td>
+      <td class="turno-badge"><span class="badge badge-${turno==="MAÑ"?"m":"t"}">${turno}</span></td>
+      ${celdas}
+      <td class="res-cell">${hsTeo.toFixed(0)}h</td>
+      <td class="res-cell" style="color:${tardanzas>0?"#f59e0b":"var(--muted)"}">${tardanzas>0?tardanzas.toFixed(2)+"h":"–"}</td>
+      <td class="res-cell" style="color:${fi>0?"#ef4444":"var(--muted)"}">${fi>0?fi.toFixed(0)+"h":"–"}</td>
+      <td class="res-cell" style="color:${fj>0?"#a78bfa":"var(--muted)"}">${fj>0?fj.toFixed(0)+"h":"–"}</td>
+      <td class="res-cell" style="color:${recup>0?"#ef4444":recup===0?"#22c55e":"var(--muted)"};font-weight:${recup>0?700:400}">
+        ${recup>0?recup.toFixed(2)+"h":"–"}</td>
+      <td class="res-cell" style="color:${he50>0?"#f0abfc":"var(--muted)"}">${he50>0?he50.toFixed(1)+"h":"–"}</td>
+      <td class="res-cell" style="color:${he100>0?"#e879f9":"var(--muted)"};font-weight:${he100>0?700:400}">${he100>0?he100.toFixed(1)+"h":"–"}</td>
+    </tr>`;
+  }
+
+  body+=`<tr class="section-sep"><td colspan="999">☀ TURNO MAÑANA — Lun-Vie 9:00–16:00 · Sáb 9:00–13:00</td></tr>`;
+  for(const a of MANANA) body+=filaAsesor(a,"MAÑ");
+  body+=`<tr class="section-sep"><td colspan="999">🌙 TURNO TARDE — Lun-Vie 14:00–21:00 · Sáb 15:00–19:00</td></tr>`;
+  for(const a of TARDE)  body+=filaAsesor(a,"TARDE");
+  document.getElementById("tableBody").innerHTML=body;
+}
+
+/* ── RESUMEN ── */
+function renderResumen(){
+  const dias=diasEnMes(mesActual,anioActual);
+  let html="";
+  for(const asesor of TODOS){
+    const turno=MANANA.includes(asesor)?"MAÑ":"TARDE";
+    const hor=HORARIOS[turno];
+    let hsTeo=0,tard=0,fi=0,fj=0,vac=0,lic=0,recup=0,guard=0,he50=0,he100=0;
+    for(let d=1;d<=dias;d++){
+      const f=fmtFecha(d,mesActual,anioActual);
+      const dow=diasSemana(d,mesActual,anioActual);
+      const reg=datos[clave(asesor,f)]||{};
+      const est=reg.estado||"";
+      if(est==="G"){hsTeo+=HS_GUARDIA;guard++;}
+      else if(["P","T","FJ","VAC","LIC"].includes(est)){
+        if(dow===6)hsTeo+=hor.hsSab;else if(dow!==0)hsTeo+=hor.hsSem;}
+      if(est==="T"&&reg.horaEnt){const t=Math.max(0,parseHora(reg.horaEnt)-((dow===6)?hor.entSab:hor.entSem));tard+=t;recup+=t;}
+      if(est==="S"&&reg.horaSal) recup+=Math.max(0,((dow===6)?hor.salSab:hor.salSem)-parseHora(reg.horaSal));
+      if(est==="FI") fi+=(dow===6)?hor.hsSab:hor.hsSem;
+      if(est==="FJ") fj+=(dow===6)?hor.hsSab:hor.hsSem;
+      if(est==="VAC"){fj+=(dow===6)?hor.hsSab:hor.hsSem;vac++;}
+      if(est==="LIC"){fj+=(dow===6)?hor.hsSab:hor.hsSem;lic++;}
+      if(est==="HE50")  he50 +=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
+      if(est==="HE100") he100+=(dow===6)?hor.hsSab:(dow===0?HS_GUARDIA:hor.hsSem);
+    }
+    const col=MANANA.includes(asesor)?"var(--accent)":"var(--orange)";
+    html+=`<div class="res-card">
+      <h3><span style="color:${col};font-size:15px">●</span> ${asesor}
+        <span class="badge badge-${turno==="MAÑ"?"m":"t"}" style="margin-left:auto">${turno}</span></h3>
+      <div class="res-row"><span>HS Teóricas</span><strong>${hsTeo.toFixed(0)}h</strong></div>
+      <div class="res-row"><span>Tardanzas</span><strong style="color:${tard>0?"#f59e0b":"inherit"}">${tard>0?tard.toFixed(2)+"h":"–"}</strong></div>
+      <div class="res-row"><span>Faltas Injust.</span><strong style="color:${fi>0?"#ef4444":"inherit"}">${fi>0?fi.toFixed(0)+"h":"–"}</strong></div>
+      <div class="res-row"><span>FJ / VAC / LIC</span><strong style="color:#a78bfa">${fj>0?fj.toFixed(0)+"h":"–"}</strong></div>
+      <div class="res-row"><span>Días Vacaciones</span><strong>${vac>0?vac+"d":"–"}</strong></div>
+      <div class="res-row"><span>Días Licencia</span><strong>${lic>0?lic+"d":"–"}</strong></div>
+      <div class="res-row"><span>Días Guardia</span><strong style="color:#c084fc">${guard>0?guard+"d":"–"}</strong></div>
+      <div class="res-row">
+        <span style="color:#f0abfc">⚡ HS Extra 50%</span>
+        <strong style="color:${he50>0?"#f0abfc":"inherit"}">${he50>0?he50.toFixed(1)+"h":"–"}</strong></div>
+      <div class="res-row">
+        <span style="color:#e879f9">⚡ HS Extra 100%</span>
+        <strong style="color:${he100>0?"#e879f9":"inherit"};font-weight:${he100>0?700:400}">${he100>0?he100.toFixed(1)+"h":"–"}</strong></div>
+      <div class="res-row">
+        <span style="font-size:11px;color:var(--muted2)">Valor 50% (ref. 7h/día)</span>
+        <strong style="color:#f0abfc;font-size:11px">${he50>0?"×1.5 = "+(he50*1.5).toFixed(1)+"h eq.":"–"}</strong></div>
+      <div class="res-row">
+        <span style="font-size:11px;color:var(--muted2)">Valor 100% (ref. 7h/día)</span>
+        <strong style="color:#e879f9;font-size:11px">${he100>0?"×2.0 = "+(he100*2).toFixed(1)+"h eq.":"–"}</strong></div>
+      <div class="res-row">
+        <span style="font-weight:700;color:var(--text)">⚠ HS A RECUPERAR</span>
+        <strong style="color:${recup>0?"#ef4444":"#22c55e"};font-size:15px">
+          ${recup>0?recup.toFixed(2)+"h":"✓ 0h"}</strong></div>
+    </div>`;
+  }
+  document.getElementById("resumenGrid").innerHTML=html;
+}
+
+/* ── GUARDIAS ── */
+function renderGuardias(){
+  const dias=diasEnMes(mesActual,anioActual);
+  let html="";
+  for(let d=1;d<=dias;d++){
+    const f=fmtFecha(d,mesActual,anioActual);
+    const dow=diasSemana(d,mesActual,anioActual);
+    if(dow!==0) continue;
+    const asig=guardias[f]||[];
+    html+=`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="min-width:80px;font-weight:700;color:var(--purple)">${DIAS_SEM[dow]} ${d}</div>
+      <div style="flex:1;display:flex;gap:8px;flex-wrap:wrap">
+        ${asig.length===0?`<span style="color:var(--muted);font-size:12px">Sin asignar</span>`:
+          asig.map(a=>`<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc;padding:4px 10px;border-radius:6px">${a}</span>`).join("")}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="abrirGuardiaDia(${d})">✎ Editar</button>
+    </div>`;
+  }
+  if(!html) html=`<p style="color:var(--muted);text-align:center;padding:24px">No hay domingos en el mes.</p>`;
+  document.getElementById("guardiaLogBody").innerHTML=html;
+}
+
+/* ══════════════════════════════════════════
+   LÓGICA DE ARRASTRE
+══════════════════════════════════════════ */
+function inicioDrag(e, td){
+  if(!dragEstado) return;              // sin código activo, no arrastrar
+  if(e.target.tagName==="SELECT"||e.target.tagName==="INPUT") return; // no interferir
+  e.preventDefault();
+  isDragging  = true;
+  dragAsesor  = td.dataset.asesor;
+  dragStartCol= +td.dataset.col;
+  dragEndCol  = dragStartCol;
+  document.body.classList.add("dragging");
+  aplicarRangoDrag();
+}
+
+function moveDrag(td){
+  if(!isDragging) return;
+  if(td.dataset.asesor !== dragAsesor) return; // solo la misma fila
+  const col = +td.dataset.col;
+  if(col !== dragEndCol){
+    dragEndCol = col;
+    resaltarDrag();
+  }
+}
+
+function finDrag(){
+  if(!isDragging) return;
+  isDragging = false;
+  document.body.classList.remove("dragging");
+  aplicarRangoDrag();
+  limpiarResalteDrag();
+  guardarDatos();
+  render();
+}
+
+function aplicarRangoDrag(){
+  if(!dragAsesor || !dragEstado) return;
+  const desde = Math.min(dragStartCol, dragEndCol);
+  const hasta  = Math.max(dragStartCol, dragEndCol);
+  for(let d=desde; d<=hasta; d++){
+    const f = fmtFecha(d, mesActual, anioActual);
+    const k = clave(dragAsesor, f);
+    if(!datos[k]) datos[k]={};
+    datos[k].estado = dragEstado;
+    // limpiar horas si el nuevo estado no las necesita
+    if(!["T","S"].includes(dragEstado)){
+      delete datos[k].horaEnt;
+      delete datos[k].horaSal;
+    }
+  }
+}
+
+function resaltarDrag(){
+  // Quitar resaltado previo
+  document.querySelectorAll(".drag-preview").forEach(el=>el.classList.remove("drag-preview"));
+  if(!dragAsesor) return;
+  const desde=Math.min(dragStartCol,dragEndCol);
+  const hasta =Math.max(dragStartCol,dragEndCol);
+  // Resaltar celdas en el rango
+  document.querySelectorAll(`td.day-cell[data-asesor="${dragAsesor}"]`).forEach(td=>{
+    const col=+td.dataset.col;
+    if(col>=desde && col<=hasta) td.classList.add("drag-preview");
+  });
+}
+
+function limpiarResalteDrag(){
+  document.querySelectorAll(".drag-preview").forEach(el=>el.classList.remove("drag-preview"));
+}
+
+/* ══════════════════════════════════════════
+   INTERACCIÓN NORMAL
+══════════════════════════════════════════ */
+function setEstado(sel){
+  const a=sel.dataset.asesor, f=sel.dataset.fecha, v=sel.value;
+  const k=clave(a,f);
+  if(!datos[k]) datos[k]={};
+  datos[k].estado=v;
+  if(!["T","S"].includes(v)){delete datos[k].horaEnt;delete datos[k].horaSal;}
+  render();
+}
+function setHora(inp){
+  const k=clave(inp.dataset.asesor,inp.dataset.fecha);
+  if(!datos[k]) datos[k]={};
+  datos[k][inp.dataset.tipo]=inp.value.trim();
+}
+function parseHora(s){if(!s)return 0;const p=s.split(":");return +p[0]+(+p[1]||0)/60}
+
+/* ── TABS ── */
+function setTab(nombre,el){
+  tabActiva=nombre;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("vista-asistencia").style.display=nombre==="asistencia"?"block":"none";
+  document.getElementById("vista-resumen").style.display   =nombre==="resumen"?"block":"none";
+  document.getElementById("vista-guardias").style.display  =nombre==="guardias"?"block":"none";
+  render();
+}
+
+/* ── GUARDIA MODAL ── */
+let guardiaFechaActual=null;
+function abrirGuardia(){
+  const gd=document.getElementById("guardiaDia");
+  const gm=document.getElementById("guardiaMes");
+  const ga=document.getElementById("guardiaAnio");
+  const dias=diasEnMes(mesActual,anioActual);
+  const doms=[];
+  for(let d=1;d<=dias;d++) if(esDom(d,mesActual,anioActual)) doms.push(d);
+  gd.innerHTML=doms.map(d=>`<option value="${d}">${d}</option>`).join("");
+  gm.innerHTML=MESES.map((m,i)=>`<option value="${i}" ${i===mesActual?"selected":""}>${m}</option>`).join("");
+  ga.innerHTML=[2025,2026,2027,2028].map(y=>`<option value="${y}" ${y===anioActual?"selected":""}>${y}</option>`).join("");
+  document.getElementById("guardiaModal").classList.add("open");
+  renderGuardiaList();
+}
+function abrirGuardiaDia(dia){
+  abrirGuardia();
+  document.getElementById("guardiaDia").value=dia;
+  renderGuardiaList();
+}
+function renderGuardiaList(){
+  const d=+document.getElementById("guardiaDia").value;
+  const m=+document.getElementById("guardiaMes").value;
+  const y=+document.getElementById("guardiaAnio").value;
+  const f=fmtFecha(d,m,y);
+  guardiaFechaActual=f;
+  const sel=guardias[f]||[];
+  document.getElementById("guardiaSubtitle").textContent=
+    `Seleccioná 3 asesores — ${DIAS_SEM[diasSemana(d,m,y)]} ${d} de ${MESES[m]} ${y}`;
+  document.getElementById("guardiaList").innerHTML=
+    TODOS.map(a=>`<label class="guardia-item ${sel.includes(a)?"sel":""}">
+      <input type="checkbox" value="${a}" ${sel.includes(a)?"checked":""}
+        onchange="toggleGuardiaCheck(this)">
+      <span>${a}</span>
+      <span class="badge badge-${MANANA.includes(a)?"m":"t"}" style="margin-left:auto">
+        ${MANANA.includes(a)?"MAÑ":"TARDE"}</span>
+    </label>`).join("");
+  actualizarCntGuardia();
+}
+function toggleGuardiaCheck(cb){
+  const cnt=document.querySelectorAll("#guardiaList input:checked").length;
+  if(cnt>3){cb.checked=false;toast("Máximo 3 asesores","red");return;}
+  cb.closest(".guardia-item").classList.toggle("sel",cb.checked);
+  actualizarCntGuardia();
+}
+function actualizarCntGuardia(){
+  const cnt=document.querySelectorAll("#guardiaList input:checked").length;
+  document.getElementById("guardiaCnt").textContent=`${cnt}/3 seleccionados`;
+}
+function aplicarGuardia(){
+  const sels=[...document.querySelectorAll("#guardiaList input:checked")].map(c=>c.value);
+  if(sels.length!==3){toast("Seleccioná exactamente 3","red");return;}
+  guardias[guardiaFechaActual]=sels;
+  for(const a of TODOS){
+    const k=clave(a,guardiaFechaActual);
+    if(!datos[k]) datos[k]={};
+    datos[k].estado=sels.includes(a)?"G":"FR";
+  }
+  cerrarGuardia();guardarDatos();render();toast("Guardia asignada ✓");
+}
+function cerrarGuardia(){document.getElementById("guardiaModal").classList.remove("open")}
+
+/* ── CSV ── */
+function exportarCSV(){
+  const dias=diasEnMes(mesActual,anioActual);
+  const rows=[["Asesor","Turno","Fecha","DíaSemana","Estado","HoraEntrada","HoraSalida","HsExtra50","HsExtra100"]];
+  for(const a of TODOS){
+    const turno=MANANA.includes(a)?"MAÑ":"TARDE";
+    for(let d=1;d<=dias;d++){
+      const f=fmtFecha(d,mesActual,anioActual);
+      const reg=datos[clave(a,f)]||{};
+      const hor2=HORARIOS[turno];
+      const dow2=diasSemana(d,mesActual,anioActual);
+      const hsD=(dow2===6)?hor2.hsSab:(dow2===0?HS_GUARDIA:hor2.hsSem);
+      rows.push([a,turno,f,DIAS_SEM[dow2],reg.estado||"",reg.horaEnt||"",reg.horaSal||"",
+        reg.estado==="HE50"?hsD:"",reg.estado==="HE100"?hsD:""]);
+    }
+  }
+  const blob=new Blob([rows.map(r=>r.join(",")).join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`asistencia_${MESES[mesActual]}_${anioActual}.csv`;
+  a.click();
+  toast("CSV descargado ✓");
+}
+
+/* ── HELPERS FECHA ── */
+function diasEnMes(m,y){return new Date(y,m+1,0).getDate()}
+function diasSemana(d,m,y){return new Date(y,m,d).getDay()}
+function esDom(d,m,y){return new Date(y,m,d).getDay()===0}
+function fmtFecha(d,m,y){return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
+
+/* ── TOAST ── */
+function toast(msg,tipo="green"){
+  const t=document.getElementById("toast");
+  t.textContent=msg;
+  const col=tipo==="red"?"var(--red)":tipo==="blue"?"var(--accent)":"var(--green)";
+  t.style.borderColor=col;t.style.color=col;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+init();
+</script>
+</body>
+</html>
