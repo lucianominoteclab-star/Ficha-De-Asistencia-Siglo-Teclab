@@ -287,6 +287,8 @@ body.dragging *{cursor:crosshair!important}
 /* ══════════════════════════════════════════
    DATOS BASE
 ══════════════════════════════════════════ */
+  // Coloca acá la URL de ejecución que te da Google Apps Script al implementar como Web App
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzeVw42Puo1SeOuNf17SRm3LsSu-wdk8bcziHn_sy7BUB-dSeFOjYtuQvK6iLjiUeNl/exec";
 const MANANA = ["CAMI","GABI","CIELO","MILENA","MAKARENA","MAGALI","MICA G",
                 "AYLEN","JIMENA","MARIANA","ABRIL","NATASHA","LEILA","JOAQUIN","CANDELA"];
 const TARDE  = ["LUANA","VICTORIA","CAMILA","MILI","LOURDES","ANTONELLA",
@@ -352,16 +354,74 @@ function cargarDatos(){
 /* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
+function clave(a,f){return `${a}::${f}`}
+
+function guardarDatos(){
+  // Mostramos un mensaje temporal de que está sincronizando
+  const t = document.getElementById("toast");
+  if(t) { t.textContent = "Sincronizando con Sheets..."; t.style.borderColor = "var(--amber)"; t.style.color = "var(--amber)"; t.classList.add("show"); }
+
+  const payload = {
+    datos: datos,
+    guardias: guardias
+  };
+
+  // Enviamos la info a Google Sheets usando el método POST del script
+  fetch(WEB_APP_URL, {
+    method: "POST",
+    mode: "no-cors", // Evita problemas de CORS al guardar en Apps Script
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(() => {
+    toast("Sincronizado en Google Sheet ✓", "green");
+  })
+  .catch(e => {
+    console.error("Error al guardar:", e);
+    toast("Error al sincronizar", "red");
+  });
+}
+
+function cargarDatos(){
+  // Traemos la info desde Google Sheets usando el método GET del script
+  fetch(WEB_APP_URL)
+  .then(res => res.json())
+  .then(res => {
+    if(res.ok){
+      datos = res.datos || {};
+      guardias = res.guardias || {};
+      render(); // Volvemos a renderizar la tabla con los datos reales de la nube
+      toast("Datos cargados desde la nube ✓", "green");
+    } else {
+      toast("Error al leer base de datos", "red");
+    }
+  })
+  .catch(e => {
+    console.error("Error al cargar:", e);
+    toast("Error de conexión con la nube", "red");
+  });
+}
+
+/* ══════════════════════════════════════════
+   INIT (MODIFICADO PARA CARGA ASÍNCRONA)
+══════════════════════════════════════════ */
 function init(){
-  cargarDatos();
   const hoy = new Date();
   mesActual  = hoy.getMonth();
   anioActual = hoy.getFullYear();
   buildSelects();
   buildLeyenda();
   buildDragPills();
-  render();
+  render(); // Render inicial vacío o con lo que haya en memoria temporal
+  
+  cargarDatos(); // Trae los datos de Google Sheets asíncronamente
+
+  // Mantiene el autoguardado de tu estructura cada 60 segundos
   setInterval(guardarDatos, 60000);
+
+  document.addEventListener("mouseup", finDrag);
+  document.addEventListener("mouseleave", finDrag);
+}
 
   // Liberar arrastre si el mouse sale de la ventana
   document.addEventListener("mouseup", finDrag);
